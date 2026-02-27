@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from contextlib import contextmanager
 
 from config.settings import settings
 
@@ -22,8 +21,8 @@ SessionLocal = sessionmaker(
     future=True,
 )
 
-@contextmanager
 def get_db():
+    """FastAPI dependency for database sessions."""
     db = SessionLocal()
     try:
         yield db

@@ -7,9 +7,12 @@ from alembic import context
 from config.settings import settings
 from shared.database.session import Base
 
-from shared.database.models import (
-    temporario,
-)  # Import models to register them with Base
+from shared.database.models.user import User
+from shared.database.models.chat_type import ChatType
+from shared.database.models.chat import Chat
+from shared.database.models.message import Message
+from shared.database.models.knowledge_chunk import KnowledgeChunk
+from shared.database.models.ingestion_job import IngestionJob
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

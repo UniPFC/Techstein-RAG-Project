@@ -31,6 +31,25 @@ class Settings(BaseSettings):
     def QDRANT_URL(self):
         return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
 
+    # AI/LLM Provider API Keys
+    OLLAMA_API_KEY: str = "ollama"
+    OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    HUGGINGFACE_TOKEN: str = ""
+
+    # LLM Configuration
+    LLM_PROVIDER: str = "ollama"  # ollama, openai, gemini
+    LLM_MODEL: str = "llama3.1:8b"
+
+    # Embedding & Reranking Models
+    EMBEDDING_MODEL_ID: str = "mixedbread-ai/mxbai-embed-large-v1"
+    RERANKER_MODEL_ID: str = "BAAI/bge-reranker-base"
+    
+    # RAG Parameters
+    K_RETRIEVAL: int = 10
+    TOP_K: int = 5
+    THRESHOLD: float = 0.3
+
     model_config = ConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
