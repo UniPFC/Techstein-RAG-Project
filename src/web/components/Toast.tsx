@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ToastProps {
   message: string;
@@ -9,35 +9,46 @@ interface ToastProps {
   onClose?: () => void;
 }
 
-export default function Toast({ message, type = 'info', duration = 3000, onClose }: ToastProps) {
-  const [isVisible, setIsVisible] = useState(true);
+export default function Toast({ message, type = 'info', duration = 3500, onClose }: ToastProps) {
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsVisible(false);
+      setVisible(false);
       onClose?.();
     }, duration);
-
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
-  if (!isVisible) return null;
+  if (!visible) return null;
 
-  const bgColor = {
-    success: 'bg-green-600',
-    error: 'bg-red-600',
-    info: 'bg-blue-600',
+  const styles = {
+    success: 'bg-emerald-600 dark:bg-emerald-500',
+    error: 'bg-red-600 dark:bg-red-500',
+    info: 'bg-brand-600 dark:bg-brand-500',
   }[type];
 
-  const icon = {
-    success: '✓',
-    error: '✕',
-    info: 'ℹ',
+  const icons = {
+    success: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    ),
+    error: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    ),
+    info: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
   }[type];
 
   return (
-    <div className={`fixed bottom-4 right-4 ${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-slideIn z-50`}>
-      <span className="font-bold text-lg">{icon}</span>
+    <div className={`fixed bottom-5 right-5 ${styles} text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2.5 animate-slide-up z-50 text-sm font-medium`}>
+      {icons}
       <span>{message}</span>
     </div>
   );

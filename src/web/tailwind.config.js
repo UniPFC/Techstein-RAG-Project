@@ -2,24 +2,47 @@
 module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx}',
-    './pages/**/*.{js,ts,jsx,tsx}',
     './components/**/*.{js,ts,jsx,tsx}',
+    './lib/**/*.{js,ts,jsx,tsx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        primary: '#1a73e8',
-        'primary-hover': '#1557b0',
-        secondary: '#34a853',
-        success: '#34a853',
-        error: '#ea4335',
-        warning: '#fbbc04',
-        'text-primary': '#202124',
-        'text-secondary': '#5f6368',
-        'border': '#dadce0',
-        'surface-1': '#ffffff',
-        'surface-2': '#f1f3f4',
-        'surface-3': '#e8eaed',
+        brand: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          200: '#bfdbfe',
+          300: '#93c5fd',
+          400: '#60a5fa',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          800: '#1e40af',
+          900: '#1e3a8a',
+        },
+      },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.3s ease-out',
+        'slide-in-right': 'slideInRight 0.3s ease-out',
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        slideInRight: {
+          '0%': { opacity: '0', transform: 'translateX(16px)' },
+          '100%': { opacity: '1', transform: 'translateX(0)' },
+        },
       },
     },
   },
