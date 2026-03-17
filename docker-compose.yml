@@ -1,17 +1,23 @@
 
 
 services:
-  # 1. Frontend
+  # 1. Frontend (Next.js)
   web:
-    build: ./src/web
+    build:
+      context: .
+      dockerfile: src/web/Dockerfile
     container_name: rag_web
     ports:
-      - "3000:80"
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://api:8000/api/v1
+      - NODE_ENV=production
     volumes:
-      - ./src/web/pages:/usr/share/nginx/html
-      - ./src/web/css:/usr/share/nginx/html/css
-      - ./src/web/js:/usr/share/nginx/html/js
-      - ./src/web/assets:/usr/share/nginx/html/assets
+      - ./src/web/app:/app/app
+      - ./src/web/components:/app/components
+      - ./src/web/lib:/app/lib
+      - ./src/web/styles:/app/styles
+      - ./src/web/public:/app/public
     networks:
       - rag_network
     depends_on:

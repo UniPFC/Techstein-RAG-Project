@@ -1,213 +1,227 @@
-# Portal RAG - Frontend Web
+# Frontend RAG - Next.js & React
 
-## 📋 Visão Geral
+## 🚀 Visão Geral
 
-Frontend completo para o sistema RAG Chat, desenvolvido com HTML5, CSS3 e JavaScript vanilla. O sistema oferece uma interface moderna e responsiva para interagir com a API de chat inteligente.
+Frontend moderno em **Next.js 14** com **React 18** para o sistema RAG Chat. Interface responsiva com suporte a dark mode, autenticação JWT e gerenciamento de estado.
 
-## 🚀 Funcionalidades Implementadas
+## ✨ Funcionalidades
 
-### ✅ Tela de Login Completa
-- **Design moderno** com gradientes e animações suaves
-- **Validação em tempo real** de e-mail e senha
-- **Toggle de visibilidade** da senha
-- **Opção "Lembrar-me"** com persistência local
-- **Login social** (Google e Microsoft - UI pronta)
-- **Feedback visual** com toast notifications
-- **Estados de loading** e animações
-- **Totalmente responsivo** para mobile e desktop
+### Autenticação
+- ✅ Login com e-mail e senha
+- ✅ Cadastro de novos usuários
+- ✅ Verificação de token JWT
+- ✅ Lembrar usuário (30 dias)
+- ✅ Logout
+- ✅ Proteção de rotas autenticadas
 
-### ✅ Dashboard Interativo
-- **Estatísticas em tempo real** com animações
-- **Lista de chats recentes** com ações rápidas
-- **Navegação lateral** responsiva
-- **Informações do usuário** personalizadas
-- **Sistema de notificações** toast
-- **Menu mobile** com hamburger
-- **Atualização automática** de dados
+### Dashboard
+- ✅ Visualização de estatísticas
+- ✅ Lista de chats recentes
+- ✅ Menu sidebar responsivo
+- ✅ Informações do usuário
+- ✅ Navegação intuitiva
 
-### 🔧 Características Técnicas
+### Design
+- ✅ UI moderna com Tailwind CSS
+- ✅ Responsivo (mobile, tablet, desktop)
+- ✅ Animações suaves
+- ✅ Toast notifications
+- ✅ Loading states
 
-#### **Validação de Formulários**
-- Validação de e-mail com regex
-- Validação de senha (mínimo 6 caracteres)
-- Mensagens de erro contextuais
-- Limpeza automática de erros
-- Feedback visual em tempo real
+## 🛠️ Tecnologias
 
-#### **Gerenciamento de Estado**
-- Autenticação com JWT (mock)
-- Persistência de sessão
-- Armazenamento local de preferências
-- Gerenciamento de usuário
-- Redirecionamento automático
+- **Framework**: Next.js 14
+- **UI Library**: React 18
+- **Styling**: Tailwind CSS
+- **HTTP Client**: Axios
+- **Autenticação**: JWT + Cookies
+- **Tipagem**: TypeScript
+- **Icons**: FontAwesome 6
 
-#### **Design Responsivo**
-- Mobile-first approach
-- Breakpoints para tablet e mobile
-- Menu hamburger para dispositivos móveis
-- Layout adaptativo
-- Touch-friendly interactions
-
-#### **Acessibilidade**
-- Semântica HTML5 correta
-- ARIA labels onde necessário
-- Navegação por teclado
-- Contraste adequado
-- Focus states visíveis
-
-## 📁 Estrutura de Arquivos
+## 📁 Estrutura de Pastas
 
 ```
 src/web/
-├── index.html          # Tela de login
-├── dashboard.html      # Dashboard principal
-├── styles.css          # Estilos globais
-├── script.js           # Lógica do login
-├── dashboard.js        # Lógica do dashboard
-├── README.md           # Documentação
-└── Dockerfile          # Configuração Docker
+├── app/                    # App Router (Next.js 13+)
+│   ├── layout.tsx         # RootLayout com imports globais
+│   ├── page.tsx           # Página raiz (redireciona para login/dashboard)
+│   ├── login/
+│   │   └── page.tsx       # Página de login
+│   ├── register/
+│   │   └── page.tsx       # Página de registro
+│   └── dashboard/
+│       └── page.tsx       # Dashboard protegido
+├── components/            # Componentes React
+│   ├── LoginForm.tsx      # Formulário de login
+│   ├── Toast.tsx          # Notificações
+│   ├── Sidebar.tsx        # Barra lateral
+│   ├── DashboardContent.tsx # Conteúdo do dashboard
+│   └── ProtectedRoute.tsx # HOC para rotas protegidas
+├── lib/                   # Funções utilitárias
+│   ├── api.ts            # Cliente Axios com interceptadores
+│   └── auth.ts           # Serviços de autenticação
+├── styles/               # Estilos globais
+│   └── globals.css       # CSS global + Tailwind
+├── public/               # Assets estáticos
+├── package.json          # Dependências
+├── tsconfig.json         # Configuração TypeScript
+├── tailwind.config.js    # Configuração Tailwind
+├── next.config.js        # Configuração Next.js
+└── Dockerfile            # Build em multi-stage
+
 ```
 
-## 🎨 Design System
+## 🚀 Primeiros Passos
 
-### **Cores**
-- **Primary:** #4f46e5 (Indigo)
-- **Secondary:** #06b6d4 (Cyan)
-- **Success:** #10b981 (Green)
-- **Error:** #ef4444 (Red)
-- **Warning:** #f59e0b (Amber)
+### Desenvolvimento Local
 
-### **Tipografia**
-- **Fonte:** Inter (Google Fonts)
-- **Pesos:** 300, 400, 500, 600, 700
-- **Hierarquia** bem definida
-
-### **Componentes**
-- Botões com múltiplos estados
-- Cards com hover effects
-- Formulários validados
-- Modais e toasts
-- Sidebar navigation
-
-## 🔐 Credenciais de Teste
-
-### **Login Demo**
-- **Admin:** `admin@portal.com` / `admin123`
-- **User:** `user@portal.com` / `user123`
-
-## 🚀 Como Usar
-
-### **Desenvolvimento Local**
-1. Clone o repositório
-2. Navegue até `src/web/`
-3. O arquivo `index.html` redirecionará para `login.html`
-4. Use as credenciais de teste ou cadastre um novo usuário
-
-### **Com Docker**
 ```bash
-# Build e start dos containers
-docker-compose up web
+# Instalar dependências
+npm install
 
-# Acesse em http://localhost:3000
+# Rodar servidor de desenvolvimento
+npm run dev
+
+# Build para produção
+npm run build
+
+# Rodar na produção
+npm start
 ```
 
-### **Produção**
+O servidor estará disponível em `http://localhost:3000`
+
+### Com Docker
+
 ```bash
-# Build da imagem
-docker build -t rag-web ./src/web
+# Iniciar todos os containers
+docker-compose up -d --build
 
-# Run do container
-docker run -p 3000:80 rag-web
+# Parar containers
+docker-compose down
+
+# Ver logs
+docker-compose logs -f web
 ```
 
-## 🔌 Integração com API
+## 🔐 Autenticação
 
-### **Endpoints Configurados**
-- **Base URL:** `http://localhost:8000/api/v1`
-- **Auth:** `/auth/login` (mock implementado)
-- **Chats:** `/chats`
-- **Chat Types:** `/chat-types`
-- **Upload:** `/upload`
+### Fluxo de Login
+1. Usuário insere e-mail e senha
+2. Requisição POST para `/auth/login`
+3. Token JWT retornado
+4. Token armazenado em localStorage + Cookie
+5. User info armazenado em localStorage
+6. Redirecionamento para dashboard
 
-### **Métodos Helper**
-```javascript
-// Fazer requisição autenticada
-await dashboardManager.makeApiRequest('/chats');
+### Token Management
+- Token armazenado em: `localStorage.authToken` + Cookie `authToken`
+- Verificação automática ao carregar páginas protegidas
+- Interceptadores Axios adicionam token em todas as requisições
+- Logout automático se token expirar (401)
 
-// Verificar autenticação
-dashboardManager.isAuthenticated();
+## 📱 Responsive Design
 
-// Obter usuário atual
-dashboardManager.getCurrentUser();
-```
+- **Mobile**: < 768px (Menu hambúrguer, layout empilhado)
+- **Tablet**: 768px - 1024px (Menu retraído, grid 2 colunas)
+- **Desktop**: > 1024px (Menu fixo, layout completo)
 
-## 📱 Responsividade
+## 🎨 Cores
 
-### **Breakpoints**
-- **Mobile:** < 768px
-- **Tablet:** 768px - 1024px
-- **Desktop:** > 1024px
+As cores seguem o design system Google:
 
-### **Adaptações**
-- Menu hamburger no mobile
-- Grid de stats responsivo
-- Cards empilhados em mobile
-- Textos ajustados para telas pequenas
-
-## 🎯 Próximos Passos
-
-### **Para Implementar**
-- [ ] Página de chat completa
-- [ ] Upload de planilhas
-- [ ] Gestão de chat types
-- [ ] Perfil do usuário
-- [ ] Configurações
-- [ ] Histórico de atividades
-
-### **Melhorias**
-- [ ] Dark mode
-- [ ] Temas personalizáveis
-- [ ] Animações avançadas
-- [ ] Lazy loading
-- [ ] Service Worker
-- [ ] PWA capabilities
-
-## 🔧 Customização
-
-### **Cores e Temas**
-Edite as variáveis CSS em `styles.css`:
 ```css
-:root {
-    --primary-color: #4f46e5;
-    --secondary-color: #06b6d4;
-    /* ... outras variáveis */
+--primary-color: #1a73e8
+--primary-hover: #1557b0
+--secondary-color: #34a853
+--error-color: #ea4335
+--warning-color: #fbbc04
+--text-primary: #202124
+--text-secondary: #5f6368
+```
+
+## 🔄 Integração com API
+
+O cliente está configurado para conectar na API em:
+`http://localhost:8000/api/v1` (em desenvolvimento)
+`http://api:8000/api/v1` (em Docker)
+
+### Endpoints Esperados
+
+```
+POST   /auth/login           - Login
+POST   /auth/register        - Registro
+POST   /auth/verify-token    - Verificação de token
+GET    /chats               - Listar chats
+GET    /chat-types          - Listar tipos de chat
+POST   /chats               - Criar novo chat
+```
+
+## 📦 Dependências Principais
+
+```json
+{
+  "react": "^18.2.0",
+  "next": "^14.0.0",
+  "axios": "^1.6.0",
+  "js-cookie": "^3.0.5",
+  "tailwindcss": "^3.3.0"
 }
 ```
 
-### **API Endpoints**
-Altere a base URL nos arquivos JS:
-```javascript
-this.apiBaseUrl = 'https://sua-api.com/api/v1';
+## 🔍 Performance
+
+- ✅ Code splitting automático
+- ✅ Image optimization
+- ✅ Lazy loading de componentes
+- ✅ Static generation onde possível
+- ✅ Bundle size otimizado (~120KB First Load JS)
+
+## 🚢 Deploy
+
+O projeto está configurado para deploy em:
+- Vercel (recomendado)
+- Docker/Kubernetes
+- Qualquer servidor Node.js
+
+### Variáveis de Ambiente
+
+```env
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+NODE_ENV=production
 ```
+
+## 📝 Notas de Desenvolvimento
+
+- Todos os componentes são "use client" (client-side rendering)
+- Usar `next/link` para navegação entre páginas
+- Usar `next/image` para otimização de imagens
+- Manter componentes pequenos e reutilizáveis
+- Usar TypeScript para type safety
 
 ## 🐛 Troubleshooting
 
-### **Problemas Comuns**
-1. **CORS:** Configure a API para permitir origem do frontend
-2. **Autenticação:** Verifique se o token JWT está válido
-3. **Responsividade:** Teste em diferentes dispositivos
-4. **Performance:** Otimize imagens e assets
-
-### **Debug Mode**
-```javascript
-// Ativar logs detalhados
-localStorage.setItem('debug', 'true');
+### Erro de CORS
+Certifique-se que a API tem CORS habilitado:
+```python
+# FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_origins=["*"])
 ```
 
-## 📄 Licença
+### Token expirado
+O usuário será automaticamente redirecionado para login se o token expirar.
 
-Este projeto está sob licença MIT. Veja o arquivo LICENSE para detalhes.
+### Build lento em produção
+Execute `npm run build` em sua máquina antes de fazer push para verificar problemas.
+
+## 📞 Suporte
+
+Para erros ou dúvidas, verifique:
+1. Logs do Next.js: `docker-compose logs -f web`
+2. Logs da API: `docker-compose logs -f api`
+3. Console do navegador (F12)
 
 ---
 
-**Desenvolvido com ❤️ para o Portal RAG**
+**Desenvolvido com ❤️ usando Next.js & React**
