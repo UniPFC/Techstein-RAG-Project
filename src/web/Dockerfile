@@ -12,6 +12,9 @@ RUN npm install --legacy-peer-deps
 # Copy source
 COPY src/web .
 
+# Ensure the directory exists even when an empty public/ folder is not tracked by Git
+RUN mkdir -p public
+
 # Build Next.js
 RUN npm run build
 
