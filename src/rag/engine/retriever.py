@@ -68,7 +68,8 @@ class KnowledgeRetriever:
         self,
         chat_type_id: UUID,
         queries: List[str],
-        limit_per_query: int = 10
+        limit_per_query: int = 10,
+        score_threshold: float = None
     ) -> List[Dict[str, Any]]:
         """
         Search with multiple queries and deduplicate results.
@@ -77,6 +78,7 @@ class KnowledgeRetriever:
             chat_type_id: ID of the ChatType
             queries: List of search queries
             limit_per_query: Max results per query
+            score_threshold: Minimum similarity score
             
         Returns:
             Deduplicated list of chunks
@@ -85,12 +87,21 @@ class KnowledgeRetriever:
         seen_ids = set()
         
         for query in queries:
-            chunks = self.search(chat_type_id, query, limit=limit_per_query)
-            
-            for chunk in chunks:
-                if chunk['id'] not in seen_ids:
-                    all_chunks.append(chunk)
-                    seen_ids.add(chunk['id'])
+            try:
+                chunks = self.search(
+                    chat_type_id=chat_type_id, 
+                    query=query, 
+                    limit=limit_per_query,
+                    score_threshold=score_threshold
+                )
+                
+                for chunk in chunks:
+                    if chunk['id'] not in seen_ids:
+                        all_chunks.append(chunk)
+                        seen_ids.add(chunk['id'])
+            except Exception as e:
+                logger.warning(f"Search failed for query '{query}': {e}")
+                continue
         
         logger.debug(f"Retrieved {len(all_chunks)} unique chunks from {len(queries)} queries")
         return all_chunks

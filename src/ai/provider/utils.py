@@ -7,7 +7,7 @@ from config.settings import settings
 
 
 URLS = {
-    "ollama": "http://localhost:11434/v1",
+    "ollama": "http://host.docker.internal:11434/v1",
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "openai": "https://api.openai.com/v1"
 }

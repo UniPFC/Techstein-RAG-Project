@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     # Directories
     BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     LOG_DIR: str = os.path.join(BASE_DIR, "logs", "api")
+    DATA_DIR: str = os.path.join(BASE_DIR, "data")
+    CACHE_DIR: str = os.path.join(BASE_DIR, "cache")
 
     # Relational Database
     POSTGRES_USER: str
@@ -43,13 +45,14 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "llama3.1:8b"
 
     # Embedding & Reranking Models
-    EMBEDDING_MODEL_ID: str = "mixedbread-ai/mxbai-embed-large-v1"
-    RERANKER_MODEL_ID: str = "BAAI/bge-reranker-base"
+    EMBEDDING_MODEL_ID: str = "nomic-ai/nomic-embed-text-v1.5"
+    RERANKER_MODEL_ID: str = "jinaai/jina-reranker-v2-base-multilingual"
     
     # RAG Parameters
     K_RETRIEVAL: int = 10
     TOP_K: int = 5
     THRESHOLD: float = 0.3
+    QUERY_EXPANSION_COUNT: int = 3
     
     # System User
     SYSTEM_USER_EMAIL: str

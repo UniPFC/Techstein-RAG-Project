@@ -37,7 +37,7 @@ class HFEmbeddingProvider(EmbeddingProvider):
         Returns:
             List of embedding vectors
         """
-        max_length = kwargs.get("max_length", 512)
+        max_length = kwargs.get("max_length", 1024)
         
         try:
             encoded = self.tokenizer(

@@ -18,7 +18,7 @@ from src.services.auth import auth_service
 
 logger = logging.getLogger(__name__)
 
-DATA_DIR = os.path.join(settings.BASE_DIR, "data")
+DATA_DIR = settings.DATA_DIR
 
 def seed_default_knowledge():
     """
@@ -41,7 +41,7 @@ def seed_default_knowledge():
             logger.info("Creating system user...")
             system_user = User(
                 email=system_email,
-                hashed_password=auth_service.get_password_hash(settings.SYSTEM_USER_PASSWORD),
+                password_hash=auth_service.get_password_hash(settings.SYSTEM_USER_PASSWORD),
                 username="System Admin",
                 is_active=True
             )

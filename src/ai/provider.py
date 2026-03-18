@@ -13,7 +13,7 @@ from config.settings import settings
 
 
 URLS = {
-    "ollama": "http://localhost:11434/v1",
+    "ollama": "http://host.docker.internal:11434/v1",
     "gemini": "https://generativelanguage.googleapis.com/v1beta/openai/",
     "openai": "https://api.openai.com/v1"
 }
@@ -290,7 +290,7 @@ class HFEmbeddingProvider(EmbeddingProvider):
         Returns:
             List of embedding vectors
         """
-        max_length = kwargs.get("max_length", 512)
+        max_length = kwargs.get("max_length", 1024)
         
         try:
             encoded = self.tokenizer(

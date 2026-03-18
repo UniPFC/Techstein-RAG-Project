@@ -37,6 +37,8 @@ services:
     volumes:
       - ./src:/app/src
       - ./logs:/app/logs
+      - ./data:/app/data
+      - ./cache:/app/cache
       - ./alembic:/app/alembic
       - ./shared:/app/shared
       - ./config:/app/config

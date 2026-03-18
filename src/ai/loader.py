@@ -24,12 +24,12 @@ class ModelLoader:
     
     def __init__(self):
         """Initialize model loader with device detection."""
-        self.cache_dir = os.path.join(settings.BASE_DIR, ".cache", "models")
+        self.cache_dir = os.path.join(settings.CACHE_DIR, "models")
         self.token = getattr(settings, "HUGGINGFACE_TOKEN", None)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
         os.makedirs(self.cache_dir, exist_ok=True)
-        logger.info(f"ModelLoader initialized. Device: {self.device}")
+        logger.info(f"ModelLoader initialized. Device: {self.device} | Cache: {self.cache_dir}")
     
     def _get_quantization_config(
         self, 

@@ -177,12 +177,13 @@ class QdrantManager:
         collection_name = self.get_collection_name(chat_type_id)
         
         try:
-            results = self.client.search(
+            # Use query_points instead of search
+            results = self.client.query_points(
                 collection_name=collection_name,
-                query_vector=query_embedding,
+                query=query_embedding,
                 limit=limit,
                 score_threshold=score_threshold
-            )
+            ).points
             
             chunks = []
             for result in results:

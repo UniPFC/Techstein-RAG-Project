@@ -8,8 +8,9 @@ from typing import List, Dict, Any, Optional
 from uuid import UUID
 from config.logger import logger
 from config.settings import settings
-from src.rag.retriever import KnowledgeRetriever
-from src.rag.reranker import RerankerEngine
+from src.rag.engine.retriever import KnowledgeRetriever
+from src.rag.engine.reranker import RerankerEngine
+from src.rag.engine.query import QueryEngine
 from src.ai.provider.llm import Provider
 from src.ai.loader import ModelLoader
 from src.ai.provider.embedding import HFEmbeddingProvider
@@ -48,7 +49,8 @@ class RAGPipeline:
         Returns:
             Prompt template as string
         """
-        prompt_path = os.path.join(settings.BASE_DIR, "prompts", f"{prompt_name}.md")
+        # Updated path to point to src/rag/prompts
+        prompt_path = os.path.join(settings.BASE_DIR, "src", "rag", "prompts", f"{prompt_name}.md")
         try:
             with open(prompt_path, "r", encoding="utf-8") as f:
                 return f.read().strip()
@@ -70,6 +72,9 @@ class RAGPipeline:
             model_name=settings.LLM_MODEL,
             provider_alias=settings.LLM_PROVIDER
         )
+        
+        # Initialize Query Engine for expansion
+        self.query_engine = QueryEngine(primary_provider=self.llm_provider)
         
         # Initialize model loader
         self.loader = ModelLoader()
@@ -121,11 +126,16 @@ class RAGPipeline:
         logger.info(f"Processing query for chat_type_id={chat_type_id}: '{query[:50]}...'")
         
         try:
-            # Step 1: Retrieve relevant chunks
-            raw_chunks = self.retriever.search(
+            # Step 1: Query Expansion
+            expanded_queries = self.query_engine.expand_query(query)
+            query_texts = [q.text for q in expanded_queries]
+            logger.info(f"Generated {len(query_texts)} search queries: {query_texts}")
+            
+            # Step 2: Retrieve relevant chunks (using multiple queries)
+            raw_chunks = self.retriever.search_many(
                 chat_type_id=chat_type_id,
-                query=query,
-                limit=k_retrieval
+                queries=query_texts,
+                limit_per_query=k_retrieval
             )
             
             if not raw_chunks:
@@ -135,7 +145,7 @@ class RAGPipeline:
                     "chunks": []
                 }
             
-            # Step 2: Rerank chunks
+            # Step 3: Rerank chunks
             reranked_chunks = self.reranker.rerank_chunks(
                 query=query,
                 chunks=raw_chunks,
@@ -152,7 +162,7 @@ class RAGPipeline:
             
             logger.info(f"Selected {len(reranked_chunks)} chunks after reranking")
             
-            # Step 3: Generate answer
+            # Step 4: Generate answer
             answer = self._generate_answer(query, reranked_chunks, chat_history)
             
             return {
@@ -192,24 +202,23 @@ class RAGPipeline:
         
         context_str = "\n\n".join(context_parts)
         
-        # Load system prompt template and format with context
-        prompt_template = self._load_prompt("rag_system")
+        prompt_template = self._load_prompt("message_system_prompt")
         system_prompt = prompt_template.format(context=context_str)
         
-        # Build messages
         messages = [{"role": "system", "content": system_prompt}]
-        
-        # Add chat history if provided
+
         if chat_history:
             messages.extend(chat_history)
         
-        # Add current query
         messages.append({"role": "user", "content": query})
         
-        # Generate answer
         try:
             logger.debug(f"Generating answer with {len(chunks)} chunks")
-            answer = self.llm_provider.generate(messages, temperature=0.3, max_new_tokens=512)
+            answer = self.llm_provider.generate(
+                messages, 
+                temperature=0.3, 
+                max_new_tokens=1024
+            )
             return answer
         except Exception as e:
             logger.error(f"Answer generation failed: {e}")
