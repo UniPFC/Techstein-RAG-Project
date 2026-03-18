@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     K_RETRIEVAL: int = 10
     TOP_K: int = 5
     THRESHOLD: float = 0.3
+    
+    # System User
+    SYSTEM_USER_EMAIL: str
+    SYSTEM_USER_PASSWORD: str
 
     # JWT Configuration
     SECRET_KEY: str = "your-secret-key-change-in-production"
