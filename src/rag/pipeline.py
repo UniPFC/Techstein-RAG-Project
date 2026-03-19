@@ -311,7 +311,7 @@ class RAGPipeline:
         
         context_str = "\n\n".join(context_parts)
         
-        prompt_template = self._load_prompt("message_system_prompt")
+        prompt_template = self._load_prompt("pipeline/message_system_prompt")
         system_prompt = prompt_template.format(context=context_str)
         
         messages = [{"role": "system", "content": system_prompt}]
