@@ -25,6 +25,8 @@ dependencies = [
     "transformers>=5.2.0",
     "uvicorn>=0.41.0",
     "pydantic[email]>=2.12.5",
+    "einops>=0.8.2",
+    "ipykernel>=7.2.0",
 ]
 
 [tool.uv]

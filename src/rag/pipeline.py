@@ -126,8 +126,13 @@ class RAGPipeline:
         logger.info(f"Processing query for chat_type_id={chat_type_id}: '{query[:50]}...'")
         
         try:
+            # Step 0: Contextualize Query (if history exists)
+            effective_query = query
+            if chat_history:
+                effective_query = self.query_engine.contextualize_query(query, chat_history)
+
             # Step 1: Query Expansion
-            expanded_queries = self.query_engine.expand_query(query)
+            expanded_queries = self.query_engine.expand_query(effective_query)
             query_texts = [q.text for q in expanded_queries]
             logger.info(f"Generated {len(query_texts)} search queries: {query_texts}")
             
@@ -174,6 +179,110 @@ class RAGPipeline:
             logger.error(f"RAG pipeline failed: {e}")
             raise
     
+    def run_stream(
+        self,
+        chat_type_id: UUID,
+        query: str,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        k_retrieval: int = None,
+        top_k: int = None,
+        threshold: float = None
+    ):
+        """
+        Execute RAG pipeline with streaming response.
+        Yields chunks of the generated answer.
+        """
+        k_retrieval = k_retrieval or settings.K_RETRIEVAL
+        top_k = top_k or settings.TOP_K
+        threshold = threshold or settings.THRESHOLD
+        
+        logger.info(f"Processing streaming query for chat_type_id={chat_type_id}")
+        
+        try:
+            # Step 0: Contextualize Query (if history exists)
+            effective_query = query
+            if chat_history:
+                effective_query = self.query_engine.contextualize_query(query, chat_history)
+
+            # Step 1: Query Expansion
+            expanded_queries = self.query_engine.expand_query(effective_query)
+            query_texts = [q.text for q in expanded_queries]
+            
+            # Step 2: Retrieve
+            raw_chunks = self.retriever.search_many(
+                chat_type_id=chat_type_id,
+                queries=query_texts,
+                limit_per_query=k_retrieval
+            )
+            
+            if not raw_chunks:
+                yield {"type": "error", "content": "Desculpe, não encontrei informações relevantes na base de conhecimento."}
+                return
+            
+            # Step 3: Rerank
+            reranked_chunks = self.reranker.rerank_chunks(
+                query=query,
+                chunks=raw_chunks,
+                top_k=top_k,
+                threshold=threshold
+            )
+            
+            if not reranked_chunks:
+                yield {"type": "error", "content": "Desculpe, as informações encontradas não eram relevantes o suficiente."}
+                return
+            
+            # Yield metadata (sources)
+            formatted_sources = [
+                {
+                    "question": chunk["question"],
+                    "answer": chunk["answer"],
+                    "score": chunk.get("rerank_score", chunk.get("score", 0))
+                }
+                for chunk in reranked_chunks
+            ]
+            yield {"type": "sources", "content": formatted_sources}
+            
+            # Step 4: Generate Stream
+            yield from self._generate_answer_stream(query, reranked_chunks, chat_history)
+            
+        except Exception as e:
+            logger.error(f"RAG pipeline stream failed: {e}")
+            yield {"type": "error", "content": f"Erro no processamento: {str(e)}"}
+
+    def _generate_answer_stream(
+        self,
+        query: str,
+        chunks: List[Dict[str, Any]],
+        chat_history: Optional[List[Dict[str, str]]] = None
+    ):
+        context_parts = []
+        for i, chunk in enumerate(chunks, 1):
+            context_parts.append(
+                f"[Fonte {i}]\n"
+                f"Pergunta: {chunk['question']}\n"
+                f"Resposta: {chunk['answer']}"
+            )
+        
+        context_str = "\n\n".join(context_parts)
+        prompt_template = self._load_prompt("message_system_prompt")
+        system_prompt = prompt_template.format(context=context_str)
+        
+        messages = [{"role": "system", "content": system_prompt}]
+        if chat_history:
+            messages.extend(chat_history)
+        messages.append({"role": "user", "content": query})
+        
+        try:
+            for token in self.llm_provider.generate_stream(
+                messages,
+                temperature=0.3,
+                max_new_tokens=1024
+            ):
+                yield {"type": "token", "content": token}
+        except Exception as e:
+            logger.error(f"Stream generation failed: {e}")
+            yield {"type": "error", "content": "Erro ao gerar resposta."}
+
     def _generate_answer(
         self,
         query: str,

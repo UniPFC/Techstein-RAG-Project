@@ -44,14 +44,15 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "ollama"  # ollama, openai, gemini
     LLM_MODEL: str = "llama3.1:8b"
 
-    # Embedding & Reranking Models
-    EMBEDDING_MODEL_ID: str = "nomic-ai/nomic-embed-text-v1.5"
-    RERANKER_MODEL_ID: str = "jinaai/jina-reranker-v2-base-multilingual"
+    # Embedding & Reranking Models Configuration
+    EMBEDDING_MODEL_ID: str = "BAAI/bge-m3"
+    EMBEDDING_DIMENSION: int = 1024
+    RERANKER_MODEL_ID: str = "BAAI/bge-reranker-v2-m3"
     
     # RAG Parameters
     K_RETRIEVAL: int = 10
     TOP_K: int = 5
-    THRESHOLD: float = 0.3
+    THRESHOLD: float = 0.0
     QUERY_EXPANSION_COUNT: int = 3
     
     # System User

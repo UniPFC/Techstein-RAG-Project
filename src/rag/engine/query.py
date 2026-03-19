@@ -24,6 +24,10 @@ class QueryEngine:
         self.templates_dir = os.path.join(settings.BASE_DIR, "src", "rag", "prompts", "query_expansion")
         self.system_template = self._load_prompt("query_exp_system_template")
         self.user_template = self._load_prompt("query_exp_user_template")
+        
+        # Contextualization templates
+        self.context_system_template = self._load_prompt("contextual_query_system_template")
+        self.context_user_template = self._load_prompt("contextual_query_user_template")
 
     def _load_prompt(self, prompt_name: str) -> str:
         """
@@ -45,6 +49,48 @@ class QueryEngine:
         except Exception as e:
             logger.error(f"Failed to load prompt {prompt_name}: {e}")
             raise
+
+    def contextualize_query(self, query_text: str, chat_history: List[dict]) -> str:
+        """
+        Rewrites the query to be standalone based on chat history.
+        """
+        if not chat_history:
+            return query_text
+            
+        # Format history string
+        history_str = ""
+        for msg in chat_history[-8:]:
+            role = "User" if msg["role"] == "user" else "AI"
+            history_str += f"{role}: {msg['content']}\n"
+            
+        system_message = self.context_system_template
+        user_message = self.context_user_template.format(
+            chat_history=history_str,
+            query_text=query_text
+        )
+        
+        messages = [
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_message}
+        ]
+        
+        try:
+            logger.info(f"Contextualizing query '{query_text}'...")
+            
+            # We use a simple string response here, not structured
+            response = self.primary_provider.generate(
+                messages=messages,
+                temperature=0.3,
+                max_new_tokens=256
+            )
+            
+            cleaned_response = response.strip().replace("Rewritten:", "").strip()
+            logger.info(f"Contextualized query: '{cleaned_response}'")
+            return cleaned_response
+            
+        except Exception as e:
+            logger.error(f"Contextualization failed: {e}. Using original query.")
+            return query_text
 
     def expand_query(self, query_text: str) -> List[RAGQuery]:
         """

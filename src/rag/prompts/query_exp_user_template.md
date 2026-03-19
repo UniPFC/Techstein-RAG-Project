@@ -1,3 +1,3 @@
-Original Query: {query_text}
+Consulta Original: {query_text}
 
-Generate {count} related search queries.
+Gere {count} consultas de busca relacionadas.

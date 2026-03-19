@@ -59,18 +59,9 @@ def process_ingestion_job(
         # Ingest chunks
         point_ids, total_ingested = ingestion_service.ingest_chunks(
             chat_type_id=chat_type_id,
-            chunks=chunks
+            chunks=chunks,
+            db_session=db
         )
-        
-        # Create KnowledgeChunk records
-        for point_id in point_ids:
-            chunk = KnowledgeChunk(
-                chat_type_id=chat_type_id,
-                qdrant_point_id=point_id,
-                source_file=filename,
-                chunk_metadata=json.dumps({"uploaded": True})
-            )
-            db.add(chunk)
         
         # Update job status
         job.status = IngestionStatus.COMPLETED

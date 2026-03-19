@@ -57,4 +57,7 @@ class SendMessageRequest(BaseModel):
 class SendMessageResponse(BaseModel):
     """Schema for message send response with full chat."""
     chat: ChatWithMessagesResponse
-    retrieved_chunks: Optional[List[dict]] = Field(None, description="Retrieved chunks used for RAG")
+    sources: Optional[List[dict]] = Field(None, description="Retrieved chunks used for RAG")
+    
+    class Config:
+        populate_by_name = True

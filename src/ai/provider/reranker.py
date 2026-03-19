@@ -78,6 +78,8 @@ class HFRerankProvider(RerankProvider):
                 else:
                     scores = logits[:, -1]
 
+                scores = torch.sigmoid(scores)
+
                 all_scores.extend(scores.float().cpu().tolist())
 
             return all_scores

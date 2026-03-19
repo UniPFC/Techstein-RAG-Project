@@ -197,21 +197,10 @@ async def add_chunks_to_chat_type(
             chat_type_id=chat_type_id,
             file_content=file_content,
             filename=file.filename,
+            db_session=db,
             question_col=question_column,
             answer_col=answer_column
         )
-        
-        # Create KnowledgeChunk records
-        for point_id in point_ids:
-            chunk = KnowledgeChunk(
-                chat_type_id=chat_type_id,
-                qdrant_point_id=point_id,
-                source_file=file.filename,
-                chunk_metadata=json.dumps({"uploaded": True})
-            )
-            db.add(chunk)
-        
-        db.commit()
         
         logger.info(f"Added {total_ingested} chunks to ChatType {chat_type_id}")
         

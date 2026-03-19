@@ -41,7 +41,7 @@ class QdrantManager:
     def create_collection(
         self, 
         chat_type_id: UUID, 
-        vector_size: int = 1024,
+        vector_size: int = settings.EMBEDDING_DIMENSION,
         distance: Distance = Distance.COSINE
     ) -> bool:
         """
@@ -49,7 +49,7 @@ class QdrantManager:
         
         Args:
             chat_type_id: ID of the ChatType
-            vector_size: Dimension of embedding vectors (default: 1024 for mxbai-embed-large-v1)
+            vector_size: Dimension of embedding vectors (default: from settings)
             distance: Distance metric for similarity search
             
         Returns:

@@ -212,3 +212,5 @@ cache/*
 logs/*
 
 outro_projeto/*
+
+*.ipynb

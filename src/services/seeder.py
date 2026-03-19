@@ -96,7 +96,7 @@ def seed_default_knowledge():
                 db.commit()
                 db.refresh(chat_type)
                 
-                # Create Qdrant collection
+            # Ensure Qdrant collection exists and has correct dimension
                 if not qdrant_manager:
                     qdrant_manager = QdrantManager()
                 qdrant_manager.create_collection(chat_type.id)
@@ -128,7 +128,8 @@ def seed_default_knowledge():
                     ingestion_service.ingest_from_file(
                         chat_type_id=chat_type.id,
                         file_content=file_content,
-                        filename=filename
+                        filename=filename,
+                        db_session=db
                     )
                     logger.info(f"Ingestion for '{chat_title}' completed successfully.")
                 except Exception as e:

@@ -3,14 +3,16 @@ Chat endpoints for managing chat sessions and messages.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-from shared.database.session import get_db
+from shared.database.session import get_db, SessionLocal
 from shared.database.models.chat import Chat
 from shared.database.models.chat_type import ChatType
 from shared.database.models.message import Message, MessageRole
 from shared.database.models.user import User
+from src.services.chat import ChatService
 from src.api.schemas.chat import (
     ChatCreate,
     ChatResponse,
@@ -20,6 +22,8 @@ from src.api.schemas.chat import (
     MessageResponse
 )
 from src.api.dependencies import get_current_active_user
+from src.rag.pipeline import RAGPipeline
+import json
 from config.logger import logger
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -188,26 +192,18 @@ def send_message(
         # Verify ownership and get chat
         chat = verify_chat_ownership(chat_id, current_user.id, db)
         
-        # Create user message
-        user_message = Message(
+        # Initialize Service
+        chat_service = ChatService(db)
+        
+        # Save User Message
+        chat_service.save_message(
             chat_id=chat_id,
             role=MessageRole.USER,
             content=message_data.content
         )
-        db.add(user_message)
-        db.flush()
         
-        # Get chat history (last 10 messages for context)
-        previous_messages = db.query(Message).filter(
-            Message.chat_id == chat_id,
-            Message.id < user_message.id
-        ).order_by(Message.created_at.desc()).limit(10).all()
-        
-        # Build chat history in reverse order (oldest first)
-        chat_history = [
-            {"role": msg.role.value, "content": msg.content}
-            for msg in reversed(previous_messages)
-        ]
+        # Get chat history
+        chat_history = chat_service.get_chat_history(chat_id)
         
         # Run RAG pipeline
         from src.rag.pipeline import RAGPipeline
@@ -222,22 +218,7 @@ def send_message(
         assistant_content = result["answer"]
         retrieved_chunks = result["chunks"]
         
-        # Create assistant message
-        assistant_message = Message(
-            chat_id=chat_id,
-            role=MessageRole.ASSISTANT,
-            content=assistant_content
-        )
-        db.add(assistant_message)
-        
-        db.commit()
-        db.refresh(user_message)
-        db.refresh(assistant_message)
-        db.refresh(chat)
-        
-        logger.info(f"Processed RAG message in chat {chat_id} with {len(retrieved_chunks)} chunks")
-        
-        # Format chunks for response
+        # Format chunks for response (and storage)
         chunks_response = [
             {
                 "question": chunk["question"],
@@ -247,7 +228,18 @@ def send_message(
             for chunk in retrieved_chunks
         ]
         
+        # Save Assistant Message with context
+        chat_service.save_message(
+            chat_id=chat_id,
+            role=MessageRole.ASSISTANT,
+            content=assistant_content
+        )
+        
+        logger.info(f"Processed RAG message in chat {chat_id} with {len(retrieved_chunks)} chunks")
+        
         # Return full chat with all messages
+        db.refresh(chat)
+        
         return SendMessageResponse(
             chat=ChatWithMessagesResponse.model_validate(chat),
             retrieved_chunks=chunks_response
@@ -262,3 +254,89 @@ def send_message(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to send message: {str(e)}"
         )
+
+
+@router.post("/{chat_id}/messages/stream")
+def send_message_stream(
+    chat_id: UUID,
+    message_data: SendMessageRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Send a message and get a streaming RAG-powered response.
+    Returns a stream of JSON objects (NDJSON) with 'type' (token/sources/error) and 'content'.
+    """
+    
+    # Verify ownership
+    chat = verify_chat_ownership(chat_id, current_user.id, db)
+    
+    # Initialize Service
+    chat_service = ChatService(db)
+    
+    # Get chat history
+    chat_history = chat_service.get_chat_history(chat_id)
+    
+    # Initialize pipeline
+    
+    rag_pipeline = RAGPipeline()
+    
+    async def generate_response():
+        # Create a new session for the stream duration
+        session = SessionLocal()
+        stream_service = ChatService(session)
+        
+        full_response = []
+        retrieved_chunks = []
+        
+        try:
+            # Save User Message immediately
+            stream_service.save_message(
+                chat_id=chat_id,
+                role=MessageRole.USER,
+                content=message_data.content
+            )
+            
+            # Stream generator
+            for chunk in rag_pipeline.run_stream(
+                chat_type_id=chat.chat_type_id,
+                query=message_data.content,
+                chat_history=chat_history
+            ):
+                # Send chunk to client
+                yield json.dumps(chunk) + "\n"
+                
+                # Collect data for DB save
+                if chunk["type"] == "token":
+                    full_response.append(chunk["content"])
+                elif chunk["type"] == "sources":
+                    retrieved_chunks = chunk["content"]
+            
+            # Save Assistant Message
+            assistant_content = "".join(full_response)
+            if not assistant_content:
+                assistant_content = "Erro ao gerar resposta (sem conteúdo)."
+                
+            saved_message = stream_service.save_message(
+                chat_id=chat_id,
+                role=MessageRole.ASSISTANT,
+                content=assistant_content
+            )
+            
+            # Send final message object
+            message_response = MessageResponse.model_validate(saved_message)
+            yield json.dumps({
+                "type": "message", 
+                "content": json.loads(message_response.model_dump_json())
+            }) + "\n"
+            
+            logger.info(f"Stream completed. Saved messages to chat {chat_id}")
+            
+        except Exception as e:
+            logger.error(f"Stream error: {e}")
+            session.rollback()
+            yield json.dumps({"type": "error", "content": f"Erro interno: {str(e)}"}) + "\n"
+        finally:
+            session.close()
+
+    return StreamingResponse(generate_response(), media_type="application/x-ndjson")

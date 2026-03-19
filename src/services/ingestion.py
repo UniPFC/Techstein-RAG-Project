@@ -3,12 +3,14 @@ Chunk ingestion service for processing spreadsheets and storing in Qdrant.
 Handles: Excel/CSV upload → parsing → embedding → Qdrant storage.
 """
 
+import json
 from typing import List, Dict, Any, Tuple
 import pandas as pd
 from uuid import UUID
 from io import BytesIO
 from config.logger import logger
 from shared.qdrant.client import QdrantManager
+from shared.database.models.knowledge_chunk import KnowledgeChunk
 from src.ai.embedding import EmbeddingEngine
 
 
@@ -88,6 +90,7 @@ class ChunkIngestionService:
         self,
         chat_type_id: UUID,
         chunks: List[Dict[str, Any]],
+        db_session: Any,
         batch_size: int = 32
     ) -> Tuple[List[str], int]:
         """
@@ -96,6 +99,7 @@ class ChunkIngestionService:
         Args:
             chat_type_id: ID of the ChatType
             chunks: List of chunk dicts
+            db_session: Database session for saving metadata
             batch_size: Batch size for embedding generation
             
         Returns:
@@ -124,6 +128,21 @@ class ChunkIngestionService:
                 embeddings=all_embeddings
             )
             
+            for i, point_id in enumerate(point_ids):
+                chunk_data = chunks[i]
+                metadata = chunk_data.get("metadata", {})
+                
+                knowledge_chunk = KnowledgeChunk(
+                    chat_type_id=chat_type_id,
+                    qdrant_point_id=point_id,
+                    source_file=metadata.get("source_file"),
+                    row_number=metadata.get("row_number"),
+                    chunk_metadata=json.dumps(metadata)
+                )
+                db_session.add(knowledge_chunk)
+            
+            db_session.commit()
+            
             logger.info(f"Successfully ingested {len(point_ids)} chunks for chat_type_id={chat_type_id}")
             return point_ids, len(point_ids)
             
@@ -136,6 +155,7 @@ class ChunkIngestionService:
         chat_type_id: UUID,
         file_content: bytes,
         filename: str,
+        db_session: Any,
         question_col: str = "question",
         answer_col: str = "answer"
     ) -> Tuple[List[str], int]:
@@ -146,6 +166,7 @@ class ChunkIngestionService:
             chat_type_id: ID of the ChatType
             file_content: File bytes
             filename: Original filename
+            db_session: Database session
             question_col: Column name for questions
             answer_col: Column name for answers
             
@@ -158,7 +179,7 @@ class ChunkIngestionService:
         chunks = self.parse_spreadsheet(file_content, filename, question_col, answer_col)
         
         # Ingest chunks
-        point_ids, total = self.ingest_chunks(chat_type_id, chunks)
+        point_ids, total = self.ingest_chunks(chat_type_id, chunks, db_session)
         
         logger.info(f"Ingestion pipeline completed: {total} chunks ingested")
         return point_ids, total
