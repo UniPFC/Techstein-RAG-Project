@@ -58,9 +58,6 @@ class RerankerEngine:
             for chunk, score in zip(chunks, scores):
                 chunk['rerank_score'] = score
             
-            logger.debug(f"Rerank scores for query '{query[:30]}...': {[c['rerank_score'] for c in chunks]}")
-            logger.debug(f"Filtering with threshold: {threshold}")
-            
             # Filter by threshold
             filtered_chunks = [
                 chunk for chunk in chunks
