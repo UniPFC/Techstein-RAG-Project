@@ -21,13 +21,12 @@ class QueryEngine:
         
         self.fallback_provider = fallback_provider or self.primary_provider
         
-        self.templates_dir = os.path.join(settings.BASE_DIR, "src", "rag", "prompts", "query_expansion")
-        self.system_template = self._load_prompt("query_exp_system_template")
-        self.user_template = self._load_prompt("query_exp_user_template")
+        self.system_template = self._load_prompt("expansion/query_exp_system_template")
+        self.user_template = self._load_prompt("expansion/query_exp_user_template")
         
         # Contextualization templates
-        self.context_system_template = self._load_prompt("contextual_query_system_template")
-        self.context_user_template = self._load_prompt("contextual_query_user_template")
+        self.context_system_template = self._load_prompt("context/contextual_query_system_template")
+        self.context_user_template = self._load_prompt("context/contextual_query_user_template")
 
     def _load_prompt(self, prompt_name: str) -> str:
         """
