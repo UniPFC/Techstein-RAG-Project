@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from config.logger import logger
 from shared.database.migration import run_migrations
 from src.api.routes import chat_types, chats, upload, jobs, auth
@@ -36,6 +39,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Custom exception handler for validation errors
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Retorna mensagens de erro de validação mais claras"""
+    errors = []
+    for error in exc.errors():
+        field = ".".join(str(x) for x in error["loc"][1:])
+        msg = error["msg"]
+        
+        # Remover prefixo "Value error, " que o Pydantic adiciona
+        if msg.startswith("Value error, "):
+            msg = msg.replace("Value error, ", "", 1)
+        
+        # Melhorar mensagens de validação de senha
+        if field == "password" or field == "new_password":
+            if "at least 8 characters" in msg or "Senha deve ter no mínimo 8 caracteres" in msg:
+                msg = "Senha deve ter no mínimo 8 caracteres."
+            elif "String should have at least" in msg:
+                msg = "Senha deve ter no mínimo 8 caracteres."
+        
+        errors.append({
+            "field": field,
+            "message": msg
+        })
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": "Erro de validação",
+            "errors": errors
+        }
+    )
 
 # Include routers
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["authentication"])

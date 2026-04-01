@@ -214,3 +214,5 @@ logs/*
 outro_projeto/*
 
 *.ipynb
+
+temp/*
