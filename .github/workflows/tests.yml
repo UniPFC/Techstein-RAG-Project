@@ -29,6 +29,10 @@ jobs:
       run: |
         uv sync
     
+    - name: Load test environment variables
+      run: |
+        cat tests/.env.test >> $GITHUB_ENV
+    
     - name: Run Unit Tests
       run: |
         . .venv/bin/activate
