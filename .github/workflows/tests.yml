@@ -41,17 +41,17 @@ jobs:
     - name: Run Integration Tests
       run: |
         . .venv/bin/activate
-        pytest tests/integration/ -v --tb=short
+        pytest tests/integration/ -v --tb=short --cov=src --cov=shared --cov-append --cov-report=xml
     
     - name: Run Regression Tests
       run: |
         . .venv/bin/activate
-        pytest tests/regression/ -v --tb=short -m regression
+        pytest tests/regression/ -v --tb=short -m regression --cov=src --cov=shared --cov-append --cov-report=xml
     
     - name: Run Performance Tests
       run: |
         . .venv/bin/activate
-        pytest tests/performance/ -v --tb=short -m performance
+        pytest tests/performance/ -v --tb=short -m performance --cov=src --cov=shared --cov-append --cov-report=xml
     
     - name: Upload Coverage Reports
       uses: codecov/codecov-action@v3
