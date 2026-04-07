@@ -13,6 +13,7 @@ from shared.database.models.chat_type import ChatType
 from shared.database.models.message import Message, MessageRole
 from shared.database.models.user import User
 from src.services.chat import ChatService
+from src.services.background import schedule_title_generation
 from src.api.schemas.chat import (
     ChatCreate,
     ChatResponse,
@@ -109,7 +110,8 @@ def create_chat(
 ):
     """
     Create a new chat session.
-    Optionally specify llm_model and llm_provider to override defaults.
+    If no title is provided, generates a numbered placeholder (e.g., "Chat #1").
+    Title can be auto-generated after first message/response if placeholder was used.
     """
     try:
         # Verify chat type exists
@@ -120,11 +122,22 @@ def create_chat(
                 detail=f"ChatType with id {chat_data.chat_type_id} not found"
             )
         
+        # Determine title and whether it's auto-generated
+        title_auto_generated = False
+        if chat_data.title:
+            title = chat_data.title
+        else:
+            # Generate numbered placeholder
+            user_chats_count = db.query(Chat).filter(Chat.user_id == current_user.id).count()
+            title = f"Chat #{user_chats_count + 1}"
+            title_auto_generated = True
+        
         # Create chat with default model
         chat = Chat(
             user_id=current_user.id,
             chat_type_id=chat_data.chat_type_id,
-            title=chat_data.title,
+            title=title,
+            title_auto_generated=title_auto_generated,
             llm_model=settings.LLM_MODEL,
             llm_provider=settings.LLM_PROVIDER
         )
@@ -133,7 +146,7 @@ def create_chat(
         db.commit()
         db.refresh(chat)
         
-        logger.info(f"Created Chat: {chat.title} (id={chat.id}, model={chat.llm_model}, provider={chat.llm_provider})")
+        logger.info(f"Created Chat: {chat.title} (id={chat.id}, auto_generated={title_auto_generated}, model={chat.llm_model}, provider={chat.llm_provider})")
         return chat
         
     except HTTPException:
@@ -338,6 +351,8 @@ def send_message(
             content=assistant_content
         )
         
+        schedule_title_generation(chat_id)
+        
         logger.info(f"Processed RAG message in chat {chat_id} with {len(retrieved_chunks)} chunks")
         
         # Return full chat with all messages
@@ -427,6 +442,8 @@ def send_message_stream(
                 role=MessageRole.ASSISTANT,
                 content=assistant_content
             )
+            
+            schedule_title_generation(chat_id)
             
             # Send final message object
             message_response = MessageResponse.model_validate(saved_message)

@@ -26,8 +26,7 @@ class MessageResponse(MessageBase):
 class ChatCreate(BaseModel):
     """Schema for creating a new Chat."""
     chat_type_id: UUID = Field(..., description="ID of the chat type")
-    title: str = Field(..., min_length=1, max_length=200, description="Chat title")
-    user_id: Optional[UUID] = Field(None, description="User ID (temporary, will use auth later)")
+    title: Optional[str] = Field(None, min_length=1, max_length=200, description="Chat title (optional, will generate placeholder if not provided)")
 
 
 class ChatResponse(BaseModel):

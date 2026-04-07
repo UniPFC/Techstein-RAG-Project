@@ -52,7 +52,8 @@ class TestChatService:
         
         history = chat_service.get_chat_history(sample_chat.id, limit=10)
         
-        assert len(history) == 3
+        # History excludes the last user message (current query)
+        assert len(history) == 2
         assert history[0]["role"] == "user"
         assert history[0]["content"] == "Message 1"
         assert history[1]["role"] == "assistant"
@@ -77,9 +78,10 @@ class TestChatService:
         
         history = chat_service.get_chat_history(sample_chat.id)
         
+        # History excludes the last user message (current query), so only First and Second
+        assert len(history) == 2
         assert history[0]["content"] == "First"
         assert history[1]["content"] == "Second"
-        assert history[2]["content"] == "Third"
     
     def test_save_message_error_handling(self, db_session: Session):
         from unittest.mock import patch

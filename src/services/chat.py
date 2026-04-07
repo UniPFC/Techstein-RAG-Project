@@ -46,19 +46,25 @@ class ChatService:
     def get_chat_history(self, chat_id: UUID, limit: int = 10) -> List[Dict[str, str]]:
         """
         Get recent chat history formatted for LLM context.
+        Excludes the last user message to avoid including the current query in the history.
         
         Args:
             chat_id: ID of the chat
-            limit: Number of messages to retrieve
+            limit: Number of messages to retrieve (before excluding current user message)
             
         Returns:
-            List of message dicts [{"role": "...", "content": "..."}]
+            List of message dicts [{"role": "...", "content": "..."}] excluding current user message
         """
-        previous_messages = self.db.query(Message).filter(
+        all_messages = self.db.query(Message).filter(
             Message.chat_id == chat_id
-        ).order_by(Message.created_at.desc()).limit(limit).all()
+        ).order_by(Message.created_at.desc()).limit(limit + 1).all()
+        
+        # Skip the first message (most recent) if it's from the user (current query)
+        messages_to_include = all_messages
+        if all_messages and all_messages[0].role == MessageRole.USER:
+            messages_to_include = all_messages[1:]
         
         return [
             {"role": msg.role.value, "content": msg.content}
-            for msg in reversed(previous_messages)
+            for msg in reversed(messages_to_include)
         ]
