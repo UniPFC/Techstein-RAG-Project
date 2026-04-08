@@ -134,9 +134,9 @@ class TestEndToEnd:
             role = MessageRole.USER if role_str == "user" else MessageRole.ASSISTANT
             chat_service.save_message(chat.id, role, content)
         
-        # Verificar histórico
+        # Verificar histórico (last message is ASSISTANT, so all 8 are included)
         history = chat_service.get_chat_history(chat.id)
-        assert len(history) == 8
+        assert len(history) == 8  # All 8 messages (last is assistant, not excluded)
         assert history[0]["content"] == "Hello, I want to learn about AI"
         assert history[-1]["content"] == "You're welcome! Feel free to ask more questions anytime."
         
@@ -263,17 +263,16 @@ class TestEndToEnd:
         # User B conversation
         chat_service.save_message(chat_b.id, MessageRole.USER, "User B question")
         chat_service.save_message(chat_b.id, MessageRole.ASSISTANT, "User B answer")
-        
+
         # Verificar isolamento
         history_a = chat_service.get_chat_history(chat_a.id)
         history_b = chat_service.get_chat_history(chat_b.id)
-        
+
+        # Both chats have USER then ASSISTANT (last is ASSISTANT, so both included)
         assert len(history_a) == 2
         assert len(history_b) == 2
-        assert "User A question" in history_a[0]["content"]
-        assert "User B question" in history_b[0]["content"]
-        assert "User A question" not in history_b[0]["content"]
-        assert "User B question" not in history_a[0]["content"]
+        assert history_a[0]["content"] == "User A question"
+        assert history_b[0]["content"] == "User B question"
     
     def test_knowledge_base_with_metadata(self, db_session: Session):
         """

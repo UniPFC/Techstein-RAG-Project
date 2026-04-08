@@ -2,11 +2,11 @@
 Service for managing chat sessions and messages.
 """
 
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Dict, Optional
+from typing import List, Dict
 from shared.database.models.message import Message, MessageRole
-from shared.database.models.chat import Chat
 from config.logger import logger
 
 
@@ -29,10 +29,22 @@ class ChatService:
             Created Message object
         """
         try:
+            message_created_at = datetime.now(timezone.utc)
+            latest_created_at = self.db.query(Message.created_at).filter(
+                Message.chat_id == chat_id
+            ).order_by(Message.created_at.desc()).limit(1).scalar()
+
+            if latest_created_at is not None:
+                if latest_created_at.tzinfo is None:
+                    latest_created_at = latest_created_at.replace(tzinfo=timezone.utc)
+                if message_created_at <= latest_created_at:
+                    message_created_at = latest_created_at + timedelta(microseconds=1)
+
             message = Message(
                 chat_id=chat_id,
                 role=role,
-                content=content
+                content=content,
+                created_at=message_created_at,
             )
             self.db.add(message)
             self.db.commit()
@@ -55,16 +67,23 @@ class ChatService:
         Returns:
             List of message dicts [{"role": "...", "content": "..."}] excluding current user message
         """
+        # Get limit + 1 messages to check if we need to exclude the last one
         all_messages = self.db.query(Message).filter(
             Message.chat_id == chat_id
         ).order_by(Message.created_at.desc()).limit(limit + 1).all()
         
+        if not all_messages:
+            return []
+        
         # Skip the first message (most recent) if it's from the user (current query)
         messages_to_include = all_messages
-        if all_messages and all_messages[0].role == MessageRole.USER:
+        if all_messages[0].role == MessageRole.USER:
             messages_to_include = all_messages[1:]
+        
+        # Reverse to get chronological order (oldest to newest)
+        messages_to_include = list(reversed(messages_to_include))
         
         return [
             {"role": msg.role.value, "content": msg.content}
-            for msg in reversed(messages_to_include)
+            for msg in messages_to_include
         ]

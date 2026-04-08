@@ -64,6 +64,39 @@ class TestChunkIngestionService:
         chunks = service.parse_spreadsheet(csv_bytes, "test.csv")
         
         assert len(chunks) == 2
+
+    def test_detect_csv_delimiter_comma(self, mock_embedding_engine, mock_qdrant_manager):
+        csv_content = b"question,answer\nQ1,A1\nQ2,A2"
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        delimiter = service._detect_csv_delimiter(csv_content)
+        
+        assert delimiter == ','
+
+    def test_detect_csv_delimiter_semicolon(self, mock_embedding_engine, mock_qdrant_manager):
+        csv_content = b"question;answer\nQ1;A1\nQ2;A2"
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        delimiter = service._detect_csv_delimiter(csv_content)
+        
+        assert delimiter == ';'
+
+    def test_parse_spreadsheet_csv_with_semicolon(self, mock_embedding_engine, mock_qdrant_manager):
+        data = {
+            "question": ["Q1", "Q2"],
+            "answer": ["A1", "A2"]
+        }
+        df = pd.DataFrame(data)
+        buffer = BytesIO()
+        df.to_csv(buffer, index=False, sep=';')
+        csv_bytes = buffer.getvalue()
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        chunks = service.parse_spreadsheet(csv_bytes, "test.csv")
+        
+        assert len(chunks) == 2
+        assert chunks[0]["question"] == "Q1"
+        assert chunks[0]["answer"] == "A1"
         
     def test_parse_spreadsheet_missing_columns(self, mock_embedding_engine, mock_qdrant_manager):
         data = {"col1": ["val1"], "col2": ["val2"]}

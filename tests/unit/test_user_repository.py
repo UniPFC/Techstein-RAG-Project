@@ -223,3 +223,96 @@ class TestUserRepository:
         db_session.refresh(sample_password_reset_token)
         assert sample_password_reset_token.is_active is False
         assert sample_password_reset_token.used_at is not None
+
+    def test_cleanup_expired_tokens(self, db_session: Session, sample_user: User):
+        repo = UserRepository(db_session)
+        
+        # Create expired token
+        expired_token = UserToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="expired_token_123",
+            token_type="access",
+            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            is_active=True
+        )
+        
+        # Create inactive token
+        inactive_token = UserToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="inactive_token_456",
+            token_type="access",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            is_active=False
+        )
+        
+        # Create valid token
+        valid_token = UserToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="valid_token_789",
+            token_type="access",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            is_active=True
+        )
+        
+        db_session.add_all([expired_token, inactive_token, valid_token])
+        db_session.commit()
+        
+        # Verify all 3 tokens exist
+        all_tokens = db_session.query(UserToken).filter(UserToken.user_id == sample_user.id).all()
+        assert len(all_tokens) == 3
+        
+        # Cleanup
+        repo.cleanup_expired_tokens()
+        
+        # Verify only valid token remains
+        remaining_tokens = db_session.query(UserToken).filter(UserToken.user_id == sample_user.id).all()
+        assert len(remaining_tokens) == 1
+        assert remaining_tokens[0].token == "valid_token_789"
+
+    def test_cleanup_expired_password_reset_tokens(self, db_session: Session, sample_user: User):
+        repo = UserRepository(db_session)
+        
+        # Create expired token
+        expired_token = PasswordResetToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="expired_reset_123",
+            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            is_active=True
+        )
+        
+        # Create inactive token
+        inactive_token = PasswordResetToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="inactive_reset_456",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            is_active=False
+        )
+        
+        # Create valid token
+        valid_token = PasswordResetToken(
+            id=uuid4(),
+            user_id=sample_user.id,
+            token="valid_reset_789",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            is_active=True
+        )
+        
+        db_session.add_all([expired_token, inactive_token, valid_token])
+        db_session.commit()
+        
+        # Verify all 3 tokens exist
+        all_tokens = db_session.query(PasswordResetToken).filter(PasswordResetToken.user_id == sample_user.id).all()
+        assert len(all_tokens) == 3
+        
+        # Cleanup
+        repo.cleanup_expired_password_reset_tokens()
+        
+        # Verify only valid token remains
+        remaining_tokens = db_session.query(PasswordResetToken).filter(PasswordResetToken.user_id == sample_user.id).all()
+        assert len(remaining_tokens) == 1
+        assert remaining_tokens[0].token == "valid_reset_789"

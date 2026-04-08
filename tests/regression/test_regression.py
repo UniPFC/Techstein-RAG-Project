@@ -122,9 +122,9 @@ class TestRegressionChatFlow:
         chat_service.save_message(chat.id, MessageRole.USER, "Hello")
         chat_service.save_message(chat.id, MessageRole.ASSISTANT, "Hi there!")
         
-        # Validar histórico
+        # Validar histórico (last message is assistant, so both are included)
         history = chat_service.get_chat_history(chat.id)
-        assert len(history) == 2
+        assert len(history) == 2  # Both messages included (last is assistant, not user)
         assert history[0]["content"] == "Hello"
         assert history[1]["content"] == "Hi there!"
     
@@ -240,13 +240,13 @@ class TestRegressionDataIntegrity:
         for msg in messages:
             chat_service.save_message(chat.id, MessageRole.USER, msg)
         
-        # Validar ordem
-        # Note: get_chat_history excludes the last user message, so we get 4 messages instead of 5
         history = chat_service.get_chat_history(chat.id)
         
-        assert len(history) == len(messages) - 1
-        for i, msg in enumerate(messages[:-1]):
-            assert msg in history[i]["content"]
+        assert len(history) == 4
+        assert history[0]["content"] == "First"
+        assert history[1]["content"] == "Second"
+        assert history[2]["content"] == "Third"
+        assert history[3]["content"] == "Fourth"
 
 
 @pytest.mark.regression

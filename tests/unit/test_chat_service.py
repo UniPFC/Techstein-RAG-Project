@@ -52,7 +52,6 @@ class TestChatService:
         
         history = chat_service.get_chat_history(sample_chat.id, limit=10)
         
-        # History excludes the last user message (current query)
         assert len(history) == 2
         assert history[0]["role"] == "user"
         assert history[0]["content"] == "Message 1"
@@ -75,10 +74,10 @@ class TestChatService:
         chat_service.save_message(sample_chat.id, MessageRole.USER, "First")
         chat_service.save_message(sample_chat.id, MessageRole.ASSISTANT, "Second")
         chat_service.save_message(sample_chat.id, MessageRole.USER, "Third")
-        
+
         history = chat_service.get_chat_history(sample_chat.id)
-        
-        # History excludes the last user message (current query), so only First and Second
+
+        # Last message is USER ("Third"), so it's excluded. Returns First and Second
         assert len(history) == 2
         assert history[0]["content"] == "First"
         assert history[1]["content"] == "Second"

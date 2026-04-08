@@ -30,6 +30,7 @@ class ChatTypeResponse(ChatTypeBase):
     owner_name: Optional[str] = Field(None, description="Owner username (system chat types show 'MentorIA')")
     collection_name: str
     created_at: datetime
+    is_favorited: bool = Field(False, description="Whether the current user has favorited this chat type")
 
 
 class ChatTypeListResponse(BaseModel):
@@ -45,3 +46,13 @@ class ChatTypeSearchParams(BaseModel):
     owner_id: Optional[UUID] = Field(None, description="Filter by owner")
     skip: int = Field(0, ge=0, description="Number of records to skip")
     limit: int = Field(100, ge=1, le=1000, description="Maximum number of records to return")
+
+
+class ChatTypeFavoriteResponse(BaseModel):
+    """Schema for favorite operation response."""
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    user_id: UUID
+    chat_type_id: UUID
+    created_at: datetime

@@ -6,6 +6,7 @@ from .knowledge_chunk import KnowledgeChunk
 from .ingestion_job import IngestionJob
 from .user_token import UserToken
 from .password_reset_token import PasswordResetToken
+from .chat_type_favorite import ChatTypeFavorite
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "IngestionJob",
     "KnowledgeChunk",
     "PasswordResetToken",
+    "ChatTypeFavorite",
 ]

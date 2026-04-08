@@ -64,11 +64,20 @@ def process_ingestion_job(
         job.total_chunks = len(chunks)
         db.commit()
         
-        # Ingest chunks
+        # Ingest chunks with progress callback
+        def on_progress(processed: int):
+            try:
+                job.processed_chunks = processed
+                db.commit()
+            except Exception as e:
+                logger.warning(f"Failed to update progress: {e}")
+                db.rollback()
+        
         point_ids, total_ingested = ingestion_service.ingest_chunks(
             chat_type_id=chat_type_id,
             chunks=chunks,
-            db_session=db
+            db_session=db,
+            on_progress=on_progress
         )
         
         # Update job status

@@ -38,10 +38,10 @@ def db_session(db_engine):
         autocommit=False, autoflush=False, bind=db_engine
     )
     session = TestingSessionLocal()
+    
     try:
         yield session
     finally:
-        session.rollback()
         session.close()
 
 
@@ -82,7 +82,8 @@ def sample_chat_type(db_session: Session, sample_user: User):
 
 @pytest.fixture
 def sample_chat(db_session: Session, sample_user: User, sample_chat_type: ChatType):
-    """Create a sample chat for testing."""
+    """Create a sample chat for testing. Each test gets a fresh chat."""
+    # Create a completely new chat for this test
     chat = Chat(
         id=uuid4(),
         title="Test Chat",
@@ -93,7 +94,15 @@ def sample_chat(db_session: Session, sample_user: User, sample_chat_type: ChatTy
     db_session.add(chat)
     db_session.commit()
     db_session.refresh(chat)
-    return chat
+    
+    yield chat
+    
+    # Clean up: delete all messages for this chat after test
+    try:
+        db_session.query(Message).filter(Message.chat_id == chat.id).delete()
+        db_session.commit()
+    except Exception:
+        db_session.rollback()
 
 
 @pytest.fixture
@@ -173,3 +182,5 @@ def mock_llm_provider():
     mock_provider.generate.return_value = "Mock LLM response"
     mock_provider.stream.return_value = iter(["Mock ", "LLM ", "response"])
     return mock_provider
+
+

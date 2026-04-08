@@ -417,14 +417,13 @@ class TestBasicFlows:
             role = MessageRole.USER if role_str == "user" else MessageRole.ASSISTANT
             chat_service.save_message(chat.id, role, content)
         
-        # Verificar histórico
         history = chat_service.get_chat_history(chat.id)
         assert len(history) == 6
         
         # Verificar ordem
         assert history[0]["content"] == "What is AI?"
         assert history[1]["content"] == "AI is Artificial Intelligence"
-        assert history[-1]["content"] == "You're welcome!"
+        assert history[-1]["content"] == "You're welcome!"  # Last assistant message
     
     def test_multiple_chats_same_knowledge_base(self, db_session: Session):
         """Testa múltiplos chats usando a mesma base de conhecimento"""

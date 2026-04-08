@@ -25,7 +25,13 @@ from src.api.schemas.chat import (
     AvailableModelsResponse,
     LLMModelInfo
 )
-from src.api.dependencies import get_current_active_user
+from src.api.dependencies import (
+    get_current_active_user,
+    get_chat_repo,
+    get_chat_type_repo
+)
+from src.repositories.chat import ChatRepository
+from src.repositories.chat_type import ChatTypeRepository
 from src.rag.pipeline import RAGPipeline
 from config.settings import settings
 import json
@@ -70,14 +76,14 @@ def get_available_models(
         )
 
 
-def verify_chat_ownership(chat_id: UUID, user_id: UUID, db: Session) -> Chat:
+def verify_chat_ownership(chat_id: UUID, user_id: UUID, chat_repo: ChatRepository) -> Chat:
     """
     Verify that a chat belongs to the specified user.
     
     Args:
         chat_id: ID of the chat
         user_id: ID of the user
-        db: Database session
+        chat_repo: Chat repository instance
         
     Returns:
         Chat object if found and owned by user
@@ -85,7 +91,7 @@ def verify_chat_ownership(chat_id: UUID, user_id: UUID, db: Session) -> Chat:
     Raises:
         HTTPException: If chat not found or doesn't belong to user
     """
-    chat = db.query(Chat).filter(Chat.id == chat_id).first()
+    chat = chat_repo.get_by_id(chat_id)
     
     if not chat:
         raise HTTPException(
@@ -105,8 +111,9 @@ def verify_chat_ownership(chat_id: UUID, user_id: UUID, db: Session) -> Chat:
 @router.post("/", response_model=ChatResponse, status_code=status.HTTP_201_CREATED)
 def create_chat(
     chat_data: ChatCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_type_repo: ChatTypeRepository = Depends(get_chat_type_repo),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     Create a new chat session.
@@ -114,8 +121,9 @@ def create_chat(
     Title can be auto-generated after first message/response if placeholder was used.
     """
     try:
+        
         # Verify chat type exists
-        chat_type = db.query(ChatType).filter(ChatType.id == chat_data.chat_type_id).first()
+        chat_type = chat_type_repo.get_by_id(chat_data.chat_type_id)
         if not chat_type:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -128,7 +136,7 @@ def create_chat(
             title = chat_data.title
         else:
             # Generate numbered placeholder
-            user_chats_count = db.query(Chat).filter(Chat.user_id == current_user.id).count()
+            user_chats_count = chat_repo.count_by_user(current_user.id)
             title = f"Chat #{user_chats_count + 1}"
             title_auto_generated = True
         
@@ -142,9 +150,7 @@ def create_chat(
             llm_provider=settings.LLM_PROVIDER
         )
         
-        db.add(chat)
-        db.commit()
-        db.refresh(chat)
+        chat = chat_repo.create(chat)
         
         logger.info(f"Created Chat: {chat.title} (id={chat.id}, auto_generated={title_auto_generated}, model={chat.llm_model}, provider={chat.llm_provider})")
         return chat
@@ -152,7 +158,6 @@ def create_chat(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Failed to create chat: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -165,22 +170,19 @@ def list_chats(
     chat_type_id: UUID = None,
     skip: int = 0,
     limit: int = 100,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     List chats with optional filtering.
     """
     try:
-        query = db.query(Chat)
-        
-        # Filter by current user (always)
-        query = query.filter(Chat.user_id == current_user.id)
-        
-        if chat_type_id is not None:
-            query = query.filter(Chat.chat_type_id == chat_type_id)
-        
-        chats = query.order_by(Chat.updated_at.desc()).offset(skip).limit(limit).all()
+        chats = chat_repo.get_by_user(
+            user_id=current_user.id,
+            chat_type_id=chat_type_id,
+            skip=skip,
+            limit=limit
+        )
         return chats
         
     except Exception as e:
@@ -194,14 +196,14 @@ def list_chats(
 @router.get("/{chat_id}", response_model=ChatWithMessagesResponse)
 def get_chat(
     chat_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     Get a chat with all its messages.
     Only the chat owner can access it.
     """
-    chat = verify_chat_ownership(chat_id, current_user.id, db)
+    chat = verify_chat_ownership(chat_id, current_user.id, chat_repo)
     return chat
 
 
@@ -209,8 +211,9 @@ def get_chat(
 def update_chat_model(
     chat_id: UUID,
     model_update: ChatModelUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo),
+    db: Session = Depends(get_db)
 ):
     """
     Update the LLM model and/or provider for a chat.
@@ -222,7 +225,7 @@ def update_chat_model(
         model_update: ChatModelUpdate schema with llm_model and/or llm_provider
     """
     try:
-        chat = verify_chat_ownership(chat_id, current_user.id, db)
+        chat = verify_chat_ownership(chat_id, current_user.id, chat_repo)
         
         # Get available models for validation
         available_models = settings.get_available_models()
@@ -241,13 +244,9 @@ def update_chat_model(
             )
         
         # Update the chat
-        if model_update.llm_model is not None:
-            chat.llm_model = model_update.llm_model
-        if model_update.llm_provider is not None:
-            chat.llm_provider = model_update.llm_provider
-        
-        db.commit()
-        db.refresh(chat)
+        chat.llm_model = new_model
+        chat.llm_provider = new_provider
+        chat = chat_repo.update(chat)
         
         logger.info(f"Updated Chat model: {chat_id} -> model={chat.llm_model}, provider={chat.llm_provider}")
         return chat
@@ -255,7 +254,6 @@ def update_chat_model(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Failed to update chat model: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -266,23 +264,21 @@ def update_chat_model(
 @router.delete("/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_chat(
     chat_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     Delete a chat and all its messages.
     """
     try:
-        chat = verify_chat_ownership(chat_id, current_user.id, db)
-        db.delete(chat)
-        db.commit()
+        chat = verify_chat_ownership(chat_id, current_user.id, chat_repo)
+        chat_repo.delete(chat)
         
         logger.info(f"Deleted Chat: {chat.title} (id={chat_id})")
         
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Failed to delete chat {chat_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -295,7 +291,8 @@ def send_message(
     chat_id: UUID,
     message_data: SendMessageRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     Send a message and get RAG-powered response.
@@ -304,7 +301,7 @@ def send_message(
     """
     try:
         # Verify ownership and get chat
-        chat = verify_chat_ownership(chat_id, current_user.id, db)
+        chat = verify_chat_ownership(chat_id, current_user.id, chat_repo)
         
         # Initialize Service
         chat_service = ChatService(db)
@@ -355,8 +352,8 @@ def send_message(
         
         logger.info(f"Processed RAG message in chat {chat_id} with {len(retrieved_chunks)} chunks")
         
-        # Return full chat with all messages
-        db.refresh(chat)
+        # Return full chat with all messages - reload to get updated messages
+        chat = chat_repo.get_by_id(chat_id)
         
         return SendMessageResponse(
             chat=ChatWithMessagesResponse.model_validate(chat),
@@ -366,7 +363,6 @@ def send_message(
     except HTTPException:
         raise
     except Exception as e:
-        db.rollback()
         logger.error(f"Failed to send message: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -379,7 +375,8 @@ def send_message_stream(
     chat_id: UUID,
     message_data: SendMessageRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    chat_repo: ChatRepository = Depends(get_chat_repo)
 ):
     """
     Send a message and get a streaming RAG-powered response.
@@ -387,7 +384,7 @@ def send_message_stream(
     """
     
     # Verify ownership
-    chat = verify_chat_ownership(chat_id, current_user.id, db)
+    chat = verify_chat_ownership(chat_id, current_user.id, chat_repo)
     
     # Initialize Service
     chat_service = ChatService(db)
