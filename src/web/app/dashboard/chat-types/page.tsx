@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Search, LayoutGrid, List, Trash2, Globe, Lock, MessageSquare, Calendar, User, Sparkles, Shield, Upload } from 'lucide-react';
+import { Search, LayoutGrid, List, Trash2, Globe, Lock, MessageSquare, Calendar, User, Sparkles, Shield, Upload, Star } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button, Input, Modal, Badge, EmptyState, Card } from '@/components/ui';
 
@@ -19,6 +19,7 @@ interface ChatType {
   owner_name?: string;
   collection_name: string;
   created_at: string;
+  is_favorited?: boolean;
 }
 
 export default function ChatTypesPage() {
@@ -27,7 +28,7 @@ export default function ChatTypesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filter, setFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [tab, setTab] = useState<'my-types' | 'explore'>('my-types');
   const [showDelete, setShowDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -36,21 +37,28 @@ export default function ChatTypesPage() {
     try {
       setLoading(true);
       const params: any = { limit: 100 };
-      if (search) params.query = search;
-      if (filter === 'public') params.is_public = true;
-      if (filter === 'private') params.is_public = false;
-
-      const endpoint = search ? '/chat-types/search/' : '/chat-types/';
-      const res = await api.get(endpoint, { params });
-      const data = res.data;
-      setChatTypes(data.chat_types || []);
-      setTotal(data.total || 0);
+      
+      if (tab === 'my-types') {
+        // Meus tipos: privados + públicos favoritados
+        const res = await api.get('/chat-types/', { params });
+        const data = res.data;
+        setChatTypes(data.chat_types || []);
+        setTotal(data.total || 0);
+      } else {
+        // Explorar: todos os públicos com busca
+        if (search) params.query = search;
+        params.is_public = true;
+        const res = await api.get('/chat-types/search/', { params });
+        const data = res.data;
+        setChatTypes(data.chat_types || []);
+        setTotal(data.total || 0);
+      }
     } catch (error) {
       console.error('Error loading chat types:', error);
     } finally {
       setLoading(false);
     }
-  }, [search, filter]);
+  }, [tab, search]);
 
   useEffect(() => {
     loadChatTypes();
@@ -68,6 +76,21 @@ export default function ChatTypesPage() {
       setToast({ message: err.response?.data?.detail || 'Erro ao excluir', type: 'error' });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleToggleFavorite = async (chatTypeId: string, isFavorited: boolean) => {
+    try {
+      if (isFavorited) {
+        await api.delete(`/chat-types/${chatTypeId}/favorite`);
+        setToast({ message: 'Removido dos favoritos', type: 'success' });
+      } else {
+        await api.post(`/chat-types/${chatTypeId}/favorite`);
+        setToast({ message: 'Adicionado aos favoritos', type: 'success' });
+      }
+      loadChatTypes();
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.detail || 'Erro ao favoritar', type: 'error' });
     }
   };
 
@@ -92,44 +115,55 @@ export default function ChatTypesPage() {
           </Link>
         </div>
 
-        {/* Filters Bar */}
+        {/* Tabs */}
+        <div className="flex items-center gap-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => { setTab('my-types'); setSearch(''); }}
+            className={`px-4 py-3 font-semibold text-sm transition-all duration-200 border-b-2 ${
+              tab === 'my-types'
+                ? 'text-brand-600 dark:text-brand-400 border-brand-600 dark:border-brand-400'
+                : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
+            }`}
+          >
+            Meus Tipos
+          </button>
+          <button
+            onClick={() => { setTab('explore'); setSearch(''); }}
+            className={`px-4 py-3 font-semibold text-sm transition-all duration-200 border-b-2 ${
+              tab === 'explore'
+                ? 'text-brand-600 dark:text-brand-400 border-brand-600 dark:border-brand-400'
+                : 'text-gray-600 dark:text-gray-400 border-transparent hover:text-gray-900 dark:hover:text-gray-300'
+            }`}
+          >
+            Explorar
+          </button>
+        </div>
+
+        {/* Search and View Mode */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-          <div className="flex-1 w-full sm:max-w-sm">
-            <Input
-              placeholder="Buscar tipos de chat..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            {(['all', 'public', 'private'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                  filter === f
-                    ? 'bg-gradient-to-r from-brand-600 to-brand-700 text-white shadow-sm shadow-brand-500/20'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700'
-                }`}
-              >
-                {f === 'all' ? 'Todos' : f === 'public' ? 'Públicos' : 'Privados'}
-              </button>
-            ))}
-            <div className="ml-2 flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-all duration-200 ${viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-all duration-200 ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
-              >
-                <List className="w-4 h-4" />
-              </button>
+          {tab === 'explore' && (
+            <div className="flex-1 w-full sm:max-w-sm">
+              <Input
+                placeholder="Buscar tipos públicos..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                icon={<Search className="w-4 h-4" />}
+              />
             </div>
+          )}
+          <div className="ml-auto flex items-center bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-all duration-200 ${viewMode === 'grid' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-all duration-200 ${viewMode === 'list' ? 'bg-white dark:bg-gray-700 shadow-sm' : 'text-gray-500'}`}
+            >
+              <List className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -156,7 +190,7 @@ export default function ChatTypesPage() {
             {chatTypes.map((ct) => {
               const isMentorIA = ct.owner_name === 'MentorIA';
               return (
-              <Card key={ct.id} hover className={`flex flex-col relative overflow-hidden ${isMentorIA ? 'ring-2 ring-brand-400/40 dark:ring-brand-400/30 border-brand-200 dark:border-brand-500/30 shadow-lg shadow-brand-500/15 dark:shadow-brand-500/10 animate-glow-pulse' : ''}`}>
+              <Card key={ct.id} hover className={`h-full flex flex-col relative overflow-hidden ${isMentorIA ? 'ring-2 ring-brand-400/40 dark:ring-brand-400/30 border-brand-200 dark:border-brand-500/30 shadow-lg shadow-brand-500/15 dark:shadow-brand-500/10 animate-glow-pulse' : ''}`}>
                 {isMentorIA && (
                   <>
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-500 via-violet-500 to-brand-500 bg-300% animate-gradient" />
@@ -165,7 +199,7 @@ export default function ChatTypesPage() {
                     </div>
                   </>
                 )}
-                <div className="p-5 flex-1">
+                <div className="p-5 flex-1 flex flex-col">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -185,13 +219,15 @@ export default function ChatTypesPage() {
                       {ct.is_public ? 'Público' : 'Privado'}
                     </Badge>
                   </div>
-                  {isMentorIA && (
+                  {isMentorIA ? (
                     <div className="flex items-center gap-2 mb-3 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-brand-50/80 to-violet-50/80 dark:from-brand-500/10 dark:to-violet-500/10 border border-brand-200/60 dark:border-brand-500/15">
                       <Shield className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
                       <p className="text-[11px] text-brand-700 dark:text-brand-300 font-medium">Conteúdo revisado e verificado pelo MentorIA</p>
                     </div>
+                  ) : (
+                    <div className="h-[34px] mb-3" aria-hidden="true" />
                   )}
-                  <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 mt-4">
+                  <div className="flex items-center gap-4 text-xs text-gray-400 dark:text-gray-500 mt-auto">
                     {ct.owner_name && (
                       <span className={`flex items-center gap-1 ${isMentorIA ? 'text-brand-500 dark:text-brand-400 font-semibold' : ''}`}>
                         {isMentorIA ? <Sparkles className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
@@ -211,12 +247,25 @@ export default function ChatTypesPage() {
                   >
                     Ver Chats
                   </Link>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowDelete(ct.id); }}
-                    className="p-1.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleFavorite(ct.id, ct.is_favorited || false); }}
+                      className={`p-1.5 rounded-xl transition-all duration-200 ${
+                        ct.is_favorited
+                          ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10'
+                          : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
+                      }`}
+                      title={ct.is_favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    >
+                      <Star className={`w-4 h-4 ${ct.is_favorited ? 'fill-current' : ''}`} />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowDelete(ct.id); }}
+                      className="p-1.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </Card>
               );
@@ -262,6 +311,17 @@ export default function ChatTypesPage() {
                     >
                       Chats
                     </Link>
+                    <button
+                      onClick={() => handleToggleFavorite(ct.id, ct.is_favorited || false)}
+                      className={`p-1.5 rounded-xl transition-all duration-200 ${
+                        ct.is_favorited
+                          ? 'text-yellow-500 hover:text-yellow-600 bg-yellow-50 dark:bg-yellow-500/10'
+                          : 'text-gray-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-500/10'
+                      }`}
+                      title={ct.is_favorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+                    >
+                      <Star className={`w-4 h-4 ${ct.is_favorited ? 'fill-current' : ''}`} />
+                    </button>
                     <button
                       onClick={() => setShowDelete(ct.id)}
                       className="p-1.5 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"

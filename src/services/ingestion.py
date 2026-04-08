@@ -31,6 +31,29 @@ class ChunkIngestionService:
         self.qdrant_manager = qdrant_manager
         logger.info("ChunkIngestionService initialized")
     
+    def _detect_encoding(self, file_content: bytes) -> str:
+        """
+        Detect file encoding by trying common encodings.
+        
+        Args:
+            file_content: File bytes
+            
+        Returns:
+            Detected encoding (utf-8, latin-1, cp1252, etc.)
+        """
+        encodings = ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-16']
+        
+        for encoding in encodings:
+            try:
+                file_content.decode(encoding)
+                logger.debug(f"Detected encoding: {encoding}")
+                return encoding
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        logger.warning("Could not detect encoding, defaulting to latin-1")
+        return 'latin-1'
+
     def _detect_csv_delimiter(self, file_content: bytes) -> str:
         """
         Detect CSV delimiter (comma or semicolon) by analyzing first line.
@@ -42,8 +65,9 @@ class ChunkIngestionService:
             Detected delimiter (',' or ';')
         """
         try:
-            # Read first line as text
-            text_content = file_content.decode('utf-8', errors='ignore')
+            # Detect encoding first
+            encoding = self._detect_encoding(file_content)
+            text_content = file_content.decode(encoding, errors='ignore')
             first_line = text_content.split('\n')[0]
             
             # Count occurrences of common delimiters
@@ -84,7 +108,8 @@ class ChunkIngestionService:
             # Detect file type and read
             if filename.endswith('.csv'):
                 delimiter = self._detect_csv_delimiter(file_content)
-                df = pd.read_csv(BytesIO(file_content), delimiter=delimiter)
+                encoding = self._detect_encoding(file_content)
+                df = pd.read_csv(BytesIO(file_content), delimiter=delimiter, encoding=encoding)
             elif filename.endswith(('.xlsx', '.xls')):
                 df = pd.read_excel(BytesIO(file_content))
             else:

@@ -103,9 +103,10 @@ def delete_job(
             detail=f"Job {job_id} not found"
         )
     
-    # Check ownership via chat_type
+    # Check ownership via chat_type (if it still exists)
+    # If chat_type was deleted due to ingestion failure, we still allow deletion of the job
     chat_type = chat_type_repo.get_by_id(job.chat_type_id)
-    if not chat_type or chat_type.owner_id != current_user.id:
+    if chat_type and chat_type.owner_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You don't have permission to delete this job"

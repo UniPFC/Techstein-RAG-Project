@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Upload, FileSpreadsheet, X, RefreshCw } from 'lucide-react';
+import { Upload, FileSpreadsheet, X, RefreshCw, ChevronDown } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button, Input, Badge, EmptyState } from '@/components/ui';
 import { PageSpinner } from '@/components/ui/Spinner';
@@ -24,11 +24,15 @@ interface IngestionJob {
 export default function UploadPage() {
   const [chatTypeName, setChatTypeName] = useState('');
   const [description, setDescription] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+  const [questionColumn, setQuestionColumn] = useState('question');
+  const [answerColumn, setAnswerColumn] = useState('answer');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [jobs, setJobs] = useState<IngestionJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
   const [dragOver, setDragOver] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -48,11 +52,25 @@ export default function UploadPage() {
     loadJobs();
   }, [loadJobs]);
 
-  // Poll active jobs
+  // Poll active jobs and show toast on failure
   useEffect(() => {
     const hasActive = jobs.some((j) => j.status === 'pending' || j.status === 'processing');
     if (!hasActive) return;
-    const interval = setInterval(loadJobs, 5000);
+    
+    const interval = setInterval(() => {
+      loadJobs().then(() => {
+        // Check for newly failed jobs
+        jobs.forEach((job) => {
+          if (job.status === 'failed' && job.error_message) {
+            setToast({ 
+              message: `Upload falhou: ${job.error_message}`, 
+              type: 'error' 
+            });
+          }
+        });
+      });
+    }, 5000);
+    
     return () => clearInterval(interval);
   }, [jobs, loadJobs]);
 
@@ -68,6 +86,9 @@ export default function UploadPage() {
       formData.append('file', file);
       formData.append('name', chatTypeName.trim());
       if (description.trim()) formData.append('description', description.trim());
+      formData.append('is_public', String(isPublic));
+      formData.append('question_column', questionColumn.trim());
+      formData.append('answer_column', answerColumn.trim());
 
       await api.post('/upload/chat-type', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -76,6 +97,9 @@ export default function UploadPage() {
       setToast({ message: 'Upload enviado para processamento!', type: 'success' });
       setChatTypeName('');
       setDescription('');
+      setIsPublic(false);
+      setQuestionColumn('question');
+      setAnswerColumn('answer');
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       loadJobs();
@@ -125,7 +149,7 @@ export default function UploadPage() {
         <div className="animate-fade-in">
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">Upload de Dados</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Envie planilhas Excel ou CSV com colunas de pergunta e resposta — as colunas são identificadas automaticamente
+            Envie planilhas Excel ou CSV com colunas de pergunta e resposta
           </p>
         </div>
 
@@ -145,6 +169,69 @@ export default function UploadPage() {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descrição da base de conhecimento"
             />
+          </div>
+
+          {/* Advanced Options Section */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+            >
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                Opções Avançadas
+              </span>
+              <ChevronDown
+                className={`w-4 h-4 text-gray-500 transition-transform duration-300 ${
+                  showAdvanced ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {showAdvanced && (
+              <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 space-y-4 bg-gray-50/50 dark:bg-gray-800/30">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Coluna de Perguntas
+                    </label>
+                    <Input
+                      value={questionColumn}
+                      onChange={(e) => setQuestionColumn(e.target.value)}
+                      placeholder="question"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Nome exato da coluna que contém as perguntas
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Coluna de Respostas
+                    </label>
+                    <Input
+                      value={answerColumn}
+                      onChange={(e) => setAnswerColumn(e.target.value)}
+                      placeholder="answer"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Nome exato da coluna que contém as respostas
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+                  <input
+                    type="checkbox"
+                    id="is-public"
+                    checked={isPublic}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    className="w-4 h-4 text-brand-600 bg-gray-100 border-gray-300 rounded focus:ring-brand-500 dark:focus:ring-brand-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                  />
+                  <label htmlFor="is-public" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Tornar público (outros usuários poderão usar este tipo de chat)
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Drop Zone */}
@@ -277,7 +364,7 @@ export default function UploadPage() {
                     {(job.status === 'processing' || job.status === 'completed') && job.total_chunks > 0 && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                          <span>{job.processed_chunks}/{job.total_chunks} chunks</span>
+                          <span>{job.processed_chunks}/{job.total_chunks} linhas</span>
                           <span>{progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
@@ -292,7 +379,11 @@ export default function UploadPage() {
                     )}
 
                     {job.error_message && (
-                      <p className="mt-2 text-xs text-red-500 dark:text-red-400">{job.error_message}</p>
+                      <div className="mt-3 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30">
+                        <p className="text-xs font-medium text-red-700 dark:text-red-400">
+                          <span className="font-bold">Erro:</span> {job.error_message}
+                        </p>
+                      </div>
                     )}
                   </div>
                 );

@@ -15,6 +15,7 @@ from shared.database.models.knowledge_chunk import KnowledgeChunk
 from shared.database.models.chat import Chat
 from shared.database.models.message import Message, MessageRole
 from shared.database.session import SessionLocal
+from shared.qdrant.client import QdrantManager
 from src.services.ingestion import ChunkIngestionService
 from src.ai.provider.llm import Provider
 from src.api.schemas.title_generation import ChatTitleResponse
@@ -94,6 +95,26 @@ def process_ingestion_job(
         job.error_message = str(e)
         job.completed_at = datetime.now(timezone.utc)
         db.commit()
+        
+        # Cleanup: Delete ChatType and Qdrant collection if ingestion failed
+        try:
+            from src.repositories.chat_type import ChatTypeRepository
+            chat_type_repo = ChatTypeRepository(db)
+            chat_type = chat_type_repo.get_by_id(chat_type_id)
+            
+            if chat_type:
+                # Delete Qdrant collection
+                try:
+                    qdrant = QdrantManager()
+                    qdrant.delete_collection(chat_type_id)
+                except Exception as qdrant_err:
+                    logger.warning(f"Failed to delete Qdrant collection for ChatType {chat_type_id}: {qdrant_err}")
+                
+                # Delete ChatType from database
+                chat_type_repo.delete(chat_type)
+                logger.info(f"Cleaned up ChatType {chat_type_id} due to ingestion failure")
+        except Exception as cleanup_err:
+            logger.error(f"Failed to cleanup ChatType {chat_type_id} after ingestion failure: {cleanup_err}")
 
 
 def _load_title_generation_prompt(system: bool = True) -> str:

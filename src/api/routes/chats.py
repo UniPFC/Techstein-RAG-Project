@@ -130,6 +130,13 @@ def create_chat(
                 detail=f"ChatType with id {chat_data.chat_type_id} not found"
             )
         
+        # Check access: user must own it or it must be public
+        if not chat_type.is_public and chat_type.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to create chats with this chat type"
+            )
+        
         # Determine title and whether it's auto-generated
         title_auto_generated = False
         if chat_data.title:

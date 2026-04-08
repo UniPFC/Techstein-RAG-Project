@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Plus, MessageSquare, Trash2, Search, Calendar,
@@ -28,18 +28,22 @@ interface ChatType {
   owner_name?: string;
 }
 
-export default function ChatsPage() {
+function ChatsPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const chatTypeIdFromUrl = searchParams?.get('chat_type_id');
+  
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatTypes, setChatTypes] = useState<ChatType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [filterChatTypeId, setFilterChatTypeId] = useState('');
 
   // Create modal
   const [showNew, setShowNew] = useState(false);
   const [chatTitle, setChatTitle] = useState('');
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState(chatTypeIdFromUrl || '');
   const [typeSearch, setTypeSearch] = useState('');
   const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -52,7 +56,7 @@ export default function ChatsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [chatTypeIdFromUrl]);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -122,9 +126,11 @@ export default function ChatsPage() {
   const getChatTypeName = (id: string) =>
     chatTypes.find((ct) => ct.id === id)?.name || 'Desconhecido';
 
-  const filtered = chats.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = chats.filter((c) => {
+    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase());
+    const matchesType = !filterChatTypeId || c.chat_type_id === filterChatTypeId;
+    return matchesSearch && matchesType;
+  });
 
   return (
     <DashboardLayout>
@@ -142,15 +148,65 @@ export default function ChatsPage() {
           </Button>
         </div>
 
-        {/* Search */}
+        {/* Search and Filter */}
         {chats.length > 0 && (
-          <div className="mt-4 max-w-md animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <Input
-              placeholder="Buscar chats..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              icon={<Search className="w-4 h-4" />}
-            />
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <div className="flex-1 max-w-md">
+              <Input
+                placeholder="Buscar chats..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                icon={<Search className="w-4 h-4" />}
+              />
+            </div>
+            {chatTypes.length > 0 && (
+              <div className="relative">
+                <button
+                  onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm font-medium ${
+                    filterChatTypeId
+                      ? 'border-brand-300 dark:border-brand-500/30 bg-brand-50 dark:bg-brand-500/5 text-brand-700 dark:text-brand-300'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 text-gray-700 dark:text-gray-300'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  {filterChatTypeId ? getChatTypeName(filterChatTypeId) : 'Todos os tipos'}
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${typeDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {typeDropdownOpen && (
+                  <div className="absolute z-50 top-full mt-2 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg shadow-black/10 dark:shadow-black/30 overflow-hidden animate-scale-in">
+                    <button
+                      onClick={() => { setFilterChatTypeId(''); setTypeDropdownOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
+                        !filterChatTypeId
+                          ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                          : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-900 dark:text-white'
+                      }`}
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      Todos os tipos
+                      {!filterChatTypeId && <svg className="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
+                    </button>
+                    {chatTypes.map((ct) => (
+                      <button
+                        key={ct.id}
+                        onClick={() => { setFilterChatTypeId(ct.id); setTypeDropdownOpen(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors ${
+                          filterChatTypeId === ct.id
+                            ? 'bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 text-gray-900 dark:text-white'
+                        }`}
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        {ct.name}
+                        {filterChatTypeId === ct.id && <svg className="w-4 h-4 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -192,7 +248,7 @@ export default function ChatsPage() {
             ) : undefined}
           />
         ) : (
-          <div className="space-y-2 max-w-4xl">
+          <div className="space-y-2">
             {filtered.map((chat) => (
               <div
                 key={chat.id}
@@ -253,7 +309,7 @@ export default function ChatsPage() {
               loading={creating}
               className="flex-1"
             >
-              Criar Chat
+              Criar
             </Button>
           </div>
         }
@@ -460,5 +516,13 @@ export default function ChatsPage() {
         </p>
       </Modal>
     </DashboardLayout>
+  );
+}
+
+export default function ChatsPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Carregando...</div>}>
+      <ChatsPageContent />
+    </Suspense>
   );
 }

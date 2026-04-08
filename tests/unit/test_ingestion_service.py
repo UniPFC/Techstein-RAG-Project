@@ -97,6 +97,32 @@ class TestChunkIngestionService:
         assert len(chunks) == 2
         assert chunks[0]["question"] == "Q1"
         assert chunks[0]["answer"] == "A1"
+
+    def test_detect_encoding_utf8(self, mock_embedding_engine, mock_qdrant_manager):
+        csv_content = "pergunta,resposta\nQ1,A1\nQ2,A2".encode('utf-8')
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        encoding = service._detect_encoding(csv_content)
+        
+        assert encoding == 'utf-8'
+
+    def test_detect_encoding_latin1(self, mock_embedding_engine, mock_qdrant_manager):
+        csv_content = "pergunta,resposta\nQ1,A1\nQ2,A2".encode('latin-1')
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        encoding = service._detect_encoding(csv_content)
+        
+        assert encoding in ['utf-8', 'latin-1', 'iso-8859-1', 'cp1252']
+
+    def test_parse_spreadsheet_csv_with_latin1_encoding(self, mock_embedding_engine, mock_qdrant_manager):
+        # Create CSV with Latin-1 encoding and special characters
+        csv_content = "question,answer\nQual é a resposta?,Café\nOutra pergunta?,Açúcar".encode('latin-1')
+        
+        service = ChunkIngestionService(mock_embedding_engine, mock_qdrant_manager)
+        chunks = service.parse_spreadsheet(csv_content, "test.csv")
+        
+        assert len(chunks) == 2
+        assert "café" in chunks[0]["answer"].lower() or "açúcar" in chunks[1]["answer"].lower()
         
     def test_parse_spreadsheet_missing_columns(self, mock_embedding_engine, mock_qdrant_manager):
         data = {"col1": ["val1"], "col2": ["val2"]}
